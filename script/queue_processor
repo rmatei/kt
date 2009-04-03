@@ -1,0 +1,233 @@
+#!/usr/bin/env ruby
+require 'optparse'
+require 'etc'
+
+module Kontagent
+  class ProcessManager
+    SIGNALS = {
+      'HUP'     => :reload,
+      'INT'     => :exit_now,
+      'TERM'    => :exit,
+      'USR1'    => :info,
+      'USR2'    => :restart,
+      'SIGTRAP' => :breakpoint
+    }
+    
+    VERSION = '1.0.0'
+    
+    def initialize(options={})
+      @pid_file = options[:pid_file] || "#{RAILS_ROOT}/tmp/pids/queue_processor.pid"
+      @log_file = options[:log_file] || "#{RAILS_ROOT}/log/queue_processor.log"
+      @options = options
+    end
+  
+    def start
+      SIGNALS.each do |signal, handler|
+        install_signal_handler(signal)
+      end
+
+      if RAILS_ENV != "production"
+        puts "Starting Queue Processor #{RAILS_ENV} mode..."
+        puts "Log file: #{@log_file}"
+        puts "PID file: #{@pid_file}"
+      end
+
+      # Become a daemon
+      if @options[:daemon]
+        Daemonize.daemonize(@log_file)
+        write_pid      
+        change_privilege(@options[:user], @options[:group])
+      end
+    
+      # The main loop
+      Kt::Queue::Queue.process!
+    end
+  
+    def stop
+      send_signal('TERM', @pid_file)
+    end
+  
+    def restart
+      stop
+      start
+    end
+  
+    private
+      def send_signal(signal, pid_file)
+        pid = File.read(pid_file).to_i
+        logger.info "Sending #{signal} to at PID #{pid}..."
+        begin
+          Process.kill(signal, pid)
+        rescue Errno::ESRCH
+          logger.info "Process does not exist.  Not running."
+        end
+      end
+  
+      def stop_processor(signal, force=false)
+        logger.info "Signal #{signal} received. Terminating..."
+        Kt::Queue::Queue.stop!
+        delete_pid
+        exit
+      end
+
+      def write_pid
+        File.open(@pid_file, "w") {|f| f.write(Process.pid)}
+      end
+
+      def delete_pid
+        File.unlink @pid_file
+      end
+
+      # Signal handling
+      def install_signal_handler(signal, handler = nil)
+        handler ||= method("#{SIGNALS[signal]}_handler").to_proc
+        trap(signal, handler)
+      rescue ArgumentError
+        logger.warn "Kontagent Queue Processor: Ignoring unsupported signal #{signal}."
+      end
+
+      # def with_signal_handler(signal)
+      #   install_signal_handler(signal)
+      #   yield
+      # ensure
+      #   install_signal_handler(signal, 'DEFAULT')
+      # end
+      # 
+
+      def exit_handler(signal)
+        stop_processor(signal)
+      end
+
+      def exit_now_handler(signal)
+        if @daemonize
+          delete_pid rescue nil
+          send_signal('KILL', @pid_file)
+        else
+          exit
+        end
+      end
+      
+      def info_handler(signal)
+        logger.info Kt::Queue::Queue.queue.connection.stats.inspect        
+      end
+    
+      def reload_handler(signal)
+        logger.warn "Kontagent Queue Processor: Signal HUP is not supported!"
+      end
+      
+      def restart_handler(signal)
+        logger.warn "Kontagent Queue Processor: Signal USR2 is not supported!"
+      end
+      
+      def breakpoint_handler(signal)
+        logger.warn "Kontagent Queue Processor: Signal SIGTRAP is not supported!"
+      end
+    
+      # Change privileges of the process to specified user and group.
+      def change_privilege(user, group)
+        begin
+          uid, gid = Process.euid, Process.egid
+          target_uid = user ? Etc.getpwnam(user).uid : nil
+          target_gid = group ? Etc.getgrnam(group).gid : nil
+
+          # ---
+          # TODO: Remove this, if not necessary...
+          # if target_uid
+          #   logger.info "Initiating groups for #{user.inspect}:#{group.inspect}."
+          #   Process.initgroups(user, target_gid)
+          # end
+          # +++         
+
+          if target_uid && uid != target_uid 
+            logger.info "Changing user to #{user.inspect}." 
+            Process::UID.change_privilege(target_uid)
+          end
+          
+          if target_gid && gid != target_gid
+            logger.info "Changing group to #{group.inspect}."
+            Process::GID.change_privilege(target_gid)
+          end
+        rescue Errno::EPERM => e
+          STDERR.puts "Couldn't change user and group to #{user.inspect}:#{group.inspect}: #{e}."
+          exit 1
+        end
+      end
+    
+      def logger
+        RAILS_DEFAULT_LOGGER || ActionController::Base.logger
+      end
+  end
+
+
+  # Parses the command line options and provides central access to them.
+  # There are no required options. The main command of +start+, +stop+, or +restart+ is _required_.
+  # [+environment+] Rails Environment. Defaults to +development+.
+  # [+pid+] Pid file location. Defaults to +RAILS_ROOT/tmp/pids/queue_processor.pid+.
+  # [+log+] Log file location. Defaults to +RAILS_ROOT/log/queue_processor.log+.
+  # [+chdir+] Change directory to this PATH before running the command.
+  # [+user+] Run as the specified user. Defaults to current user.
+  # [+group+] Run as the specified group. Defaults to current group.
+  # [+daemonize+] Run as a daemon process. In _production_ mode daemon mode is the default.
+  class Configurator
+    attr_reader :cwd, :environment, :options
+  
+    def initialize
+      options = [
+        ["-e", "--environment ENV", "Rails environment to run as", :@environment, ENV['RAILS_ENV'] || "development"],
+        ["-p", "--pid", "Pid file location", :@pid_file, nil],
+        ["-l", "--log", "Log file location", :@log_file, nil],
+        ['-c', '--chdir PATH', "Change to dir before starting (will be expanded)", :@cwd, Dir.pwd],
+        ['-u', '--user USER', "Run as user USER", :@user, nil],
+        ['-g', '--group GROUP', "Run as group GROUP", :@group, nil],
+        ['-d', '--daemonize', "Run as daemon, regardless of environment", :@daemon, nil],
+      ]
+
+      @options = {}
+
+      @opts = OptionParser.new
+      @opts.banner = "Usage: #{File.basename($0)} <start|stop|restart> [options]"
+
+      @opts.on("-h", "--help", "Show this message") do
+        show_banner
+      end
+
+      options.each do |short, long, help, variable, default|
+        self.instance_variable_set(variable, default)
+        # variable comes in with @pid, @user, etc..., change to :pid, :user, etc...
+        options_variable = variable.to_s.gsub('@', '').intern
+        @options[options_variable] = default
+        @opts.on(short, long, help) do |arg|
+          self.instance_variable_set(variable, arg)
+          @options[options_variable] = arg
+        end
+      end
+
+      show_banner("Please specify one of start, stop, or restart!") unless ['start', 'stop', 'restart'].include? ARGV.first
+
+      @opts.parse! ARGV
+
+      @cwd = File.expand_path(@cwd)
+    
+      show_banner("#{@cwd} is not a valid directory") unless File.directory? @cwd    
+    end
+  
+    def show_banner(error=nil)
+      STDERR.puts error if error
+      puts @opts
+      exit(error.nil? ? 0 : 1)
+    end
+  end
+end
+
+config = Kontagent::Configurator.new
+
+Dir.chdir(config.cwd)
+ENV['RAILS_ENV'] = config.environment
+
+require File.dirname(__FILE__) + '/../config/environment'
+require 'daemons/daemonize'
+
+puts config.options.inspect
+
+manager = Kontagent::ProcessManager.new config.options
+manager.send ARGV.first.to_sym
