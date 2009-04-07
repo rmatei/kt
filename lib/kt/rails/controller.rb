@@ -70,50 +70,50 @@ module Kt
       end
 
       def handle_kontagent
-        time("Handle kontagent") do
-          get_params = params
-          $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
+        unless App.current.theme.template.code == "snowball"
+          time("Handle kontagent") do
+            get_params = params
+            $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
 
-          # trace uninstall
-          if params.has_key? :fb_sig_uninstall
-            Kt::KtAnalytics.instance.save_app_removed(params)
-            return true
-          end
-
-          # track install 
-          if params.has_key? :installed and params[:installed] == "1"
-            Kt::KtAnalytics.instance.save_app_added(params)
-          end
-        
-        
-          short_tag=nil
-          if params.has_key? :kt_type
-            # handle kontagent related parameters
-            case params[:kt_type]
-            when "ins" # invite sent
-              Kt::KtAnalytics.instance.save_invite_send(params)
-            when "in"  # invite click
-              Kt::KtAnalytics.instance.save_invite_click(params)
-            when "nt" # notification click
-              Kt::KtAnalytics.instance.save_notification_click(params)
-            when "nte" # email notification
-              Kt::KtAnalytics.instance.save_notification_email_click(params)
-            when "fdp"
-              short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params)
-            else
-            
+            # trace uninstall
+            if params.has_key? :fb_sig_uninstall
+              Kt::KtAnalytics.instance.save_app_removed(params)
+              return true
             end
 
-            # forward to the url without the kt_* params
-            f_url =  get_stripped_kt_args_url(short_tag)
-            #puts "f_url \n\t #{f_url}" #xxx
-            redirect_to f_url
-          
-          else
-            return true
+            # track install 
+            if params.has_key? :installed and params[:installed] == "1"
+              Kt::KtAnalytics.instance.save_app_added(params)
+            end
+        
+        
+            short_tag=nil
+            if params.has_key? :kt_type
+              # handle kontagent related parameters
+              case params[:kt_type]
+              when "ins" # invite sent
+                Kt::KtAnalytics.instance.save_invite_send(params)
+              when "in"  # invite click
+                Kt::KtAnalytics.instance.save_invite_click(params)
+              when "nt" # notification click
+                Kt::KtAnalytics.instance.save_notification_click(params)
+              when "nte" # email notification
+                Kt::KtAnalytics.instance.save_notification_email_click(params)
+              when "fdp"
+                short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params)
+              else
+            
+              end
+
+              # forward to the url without the kt_* params
+              f_url =  get_stripped_kt_args_url(short_tag)
+              #puts "f_url \n\t #{f_url}" #xxx
+              redirect_to f_url      
+            else
+              return true
+            end
           end
         end
-        
       end # handle_kontagent
 
       
