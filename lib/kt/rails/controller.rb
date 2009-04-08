@@ -15,6 +15,10 @@ module Kt
         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
       end
       
+      # New Relic tracking of API calls
+      add_method_tracer :capture_user_data, 'Custom/Kontagent/CaptureUserData'
+      add_method_tracer :handle_kontagent, 'Custom/Kontagent/HandleKontagent'
+      
       def set_ab_testing_page(campaign)
         page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
         msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
@@ -63,7 +67,7 @@ module Kt
         $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
         return true
       end
-
+      
       def capture_user_data
         begin
           user = session[:facebook_session].user
