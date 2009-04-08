@@ -1,7 +1,7 @@
-# Kontagent facebooker version 0.1.6
+# Kontagent facebooker version 0.2.0
 #require 'socket'
 require 'net/http'
-#require 'timeout'
+require 'timeout'
 require 'cgi'
 require 'uri'
 require 'digest/md5'
@@ -17,8 +17,45 @@ module Kt
       puts "initializing KtComm"
       @m_host = host
       @m_port = port
+      
+      if @m_host == "api.geo.kontagent.net"
+        @m_ip = fetch_ip()
+      else
+        @m_ip = host
+      end
     end
+    
+    def _fetch_ip_helper(host_name_str, port)
+      ip_lst = Socket.getaddrinfo(host_name_str, 'http')
+      ip_lst.sort_by{ rand }
+      selected_ip = nil
 
+      ip_lst.each do |ip_info|
+        ip_str = ip_info[3]
+        socket = Socket.new(AF_INET, SOCK_STREAM, 0)
+        sockaddr = Socket.sockaddr_in(port, ip_str)
+        status = -1
+        timeout(2) do
+          status = socket.connect(sockaddr)
+        end 
+        if status == 0
+          selected_ip = ip_str
+          break
+        end
+      end #loop
+      return selected_ip
+    end # _fetch_ip_helper
+      
+    def fetch_ip()
+      selected_ip = _fetch_ip_helper(@m_host, @m_port)
+
+      if selected_ip.nil?
+        selected_ip = _fetch_ip_helper("api.global.kontagent.net", 80) 
+      end
+      
+      return selected_ip
+    end
+    
     public
     def self.instance(host, port)
       if @@instance_obj == nil
@@ -26,6 +63,7 @@ module Kt
       end
       return @@instance_obj
     end
+
 
     # kt_api_url : excludes the host name.
     # version : example, v1, v2, etc.
@@ -35,13 +73,9 @@ module Kt
     # arg_assoc_hash : an associative hash of argument list. 
     def api_call_method(kt_api_url, version, api_key, secret_key, api_func, arg_assoc_hash)
 
-#       url_path = get_call_url(kt_api_url, version, api_key, secret_key, api_func, arg_assoc_hash)
-#       url_path = "http://"+@m_host+":"+@m_port.to_s+url_path
-#       uri = URI.parse(url_path)
-#       Net::HTTP.get(uri)
       socket = Socket.new(AF_INET, SOCK_STREAM, 0)
-      sockaddr = Socket.sockaddr_in(@m_port, @m_host)
-
+      sockaddr = Socket.sockaddr_in(@m_port, @m_ip)
+        
       connected = true
 
       #puts Benchmark.measure{
@@ -62,7 +96,7 @@ module Kt
         url_path = get_call_url(kt_api_url, version, api_key, secret_key, api_func, arg_assoc_hash)
 
         buf = "GET " + url_path + " HTTP/1.1\r\n"
-        buf << "Host:" + @m_host + "\r\n"
+        buf << "Host:" + @m_ip + ":" + @m_port.to_s + "\r\n"
         buf << "Content-type: application/x-www-form-urlencoded\r\n"
         buf << "Accept: */*\r\n"
         buf << "\r\n"
@@ -73,45 +107,6 @@ module Kt
       socket.close
       
       return connected
-#     socket = nil
-      
-#         puts @m_host
-#         begin
-#           timeout(2) do
-#             #socket = TCPSocket::new(@m_host, 80) #uncomment this
-#             socket = TCPSocket::new(@m_host, @m_port)
-#           end
-#         rescue Timeout::Error
-#           puts "timeout!!!"
-#           return
-#         rescue
-#           puts "tcp error!!!!"
-#           return
-#         end
-
-#         if socket != nil
-#           url_path = get_call_url(kt_api_url, version, api_key, secret_key, api_func, arg_assoc_hash)
-#   	#puts "url_path: #{url_path}" #xxx
-      
-#           buf = "GET " + url_path + " HTTP/1.1\r\n"
-#           buf << "Host:" + @m_host + "\r\n"
-#           buf << "Content-type: application/x-www-form-urlencoded\r\n"
-#           buf << "Accept: */*\r\n"
-#           buf << "\r\n"
-#           buf << "\r\n"
-#           socket.write buf
-#           socket.close
-#         end
-
-        #         old code
-        #         socket.write("GET " + url_path + " HTTP/1.1\r\n")
-        #         socket.write("Host:" + @m_host + "\r\n")
-        #         socket.write("Content-type: application/x-www-form-urlencoded\r\n")
-        #         socket.write("Accept: */*\r\n")
-        #         socket.write("\r\n")
-        #         socket.write("\r\n")
-        #         socket.close        
-    #end
     end
     
     def get_call_url(kt_api_url, version, api_key, secret_key, api_func, arg_assoc_hash)
