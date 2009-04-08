@@ -15,10 +15,6 @@ module Kt
         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
       end
       
-      # New Relic tracking of API calls
-      add_method_tracer :capture_user_data, 'Custom/Kontagent/CaptureUserData'
-      add_method_tracer :handle_kontagent, 'Custom/Kontagent/HandleKontagent'
-      
       def set_ab_testing_page(campaign)
         page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
         msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
@@ -126,7 +122,13 @@ module Kt
         end
         
       end # handle_kontagent
-
+      
+      
+      # New Relic tracking of API calls 
+      # require "#{RAILS_ROOT}/vendor/plugins/rpm/lib/new_relic/agent/method_tracer"
+      # add_method_tracer :capture_user_data, 'Custom/Kontagent/CaptureUserData'
+      # add_method_tracer :handle_kontagent, 'Custom/Kontagent/HandleKontagent'
+      
       
       private
       def get_stripped_kt_args_url (short_tag = nil)
