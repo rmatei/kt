@@ -383,7 +383,7 @@ module Kt
     # New Relic tracking of API calls
     begin
       require "#{RAILS_ROOT}/vendor/plugins/rpm/init"
-      add_method_tracer :post, 'Custom/Kontagent/OutboundMessage'
+      add_method_tracer :kt_outbound_msg, 'Custom/Kontagent/OutboundMessage'
     rescue
       puts "Failed to add New Relic instrumentation to Kontagent."
     end
