@@ -1,5 +1,4 @@
-# Kontagent facebooker version 0.2.0
-
+# Kontagent facebooker version 0.1.6
 module Facebooker
   module Rails
     class Publisher
@@ -16,9 +15,6 @@ module Facebooker
         @subtype2 = arg
       end
       
-      def campaign(arg)
-        @campaign = arg
-      end
       
       def send_message_with_kontagent(method)
         @recipients = @recipients.is_a?(Array) ? @recipients : [@recipients]
@@ -34,8 +30,7 @@ module Facebooker
         when Facebooker::Feed::Story
           @recipients.each {|r| r.publish_story(_body)}
         when Notification
-          (from.nil? ? Facebooker::Session.create : from.session).send_notification(@recipients,_body.fbml, nil, @from, 
-                                                                                    @template, @subtype1, @subtype2, @campaign)
+          (from.nil? ? Facebooker::Session.create : from.session).send_notification(@recipients,_body.fbml, nil, @from, @template, @subtype1, @subtype2)
         when Email
           from.session.send_email(@recipients, 
                                   _body.title, 
@@ -43,8 +38,7 @@ module Facebooker
                                   _body.fbml,
                                   @template,
                                   @subtype1,
-                                  @subtype2,
-                                  @campaign)
+                                  @subtype2)
         when Profile
           # If recipient and from aren't the same person, create a new user object using the
           # userid from recipient and the session from from
@@ -55,7 +49,7 @@ module Facebooker
         when Ref
           @from.session.server_cache.set_ref_handle(_body.handle,_body.fbml)
         when UserAction
-          @from.session.publish_user_action(_body.template_id || FacebookTemplate.for(method) ,_body.data,_body.target_ids,_body.body_general, @subtype1, @subtype2, @campaign)
+          @from.session.publish_user_action(_body.template_id || FacebookTemplate.for(method) ,_body.data,_body.target_ids,_body.body_general)
         else
           raise UnspecifiedBodyType.new("You must specify a valid send_as")
         end
