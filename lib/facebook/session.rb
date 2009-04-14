@@ -23,7 +23,7 @@ module Facebooker
         
         arg_hash['t'] = template_id.to_s unless template_id.nil?
         
-        Kt::KtAnalytics.instance.kt_outbound_msg('nts', arg_hash)
+        Kt::KtAnalytics.instance.kt_outbound_msg('nts', arg_hash) unless App.current.theme.template.code == "snowball"
       end
     end
     
@@ -81,7 +81,7 @@ module Facebooker
           't' => bundle_id
         }
         
-        Kt::KtAnalytics.instance.kt_outbound_msg('fdp', arg_hash) 
+        Kt::KtAnalytics.instance.kt_outbound_msg('fdp', arg_hash) unless App.current.theme.template.code == "snowball"
       end
     
     end
