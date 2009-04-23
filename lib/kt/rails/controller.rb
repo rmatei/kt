@@ -70,7 +70,7 @@ module Kt
       end
 
       def handle_kontagent
-        unless App.current.theme.template.code == "snowball"
+        unless App.current.nil? or App.current.theme.template.code == "snowball"
           time("Handle kontagent") do
             get_params = params
             $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
