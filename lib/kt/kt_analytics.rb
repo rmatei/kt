@@ -390,7 +390,10 @@ module Kt
     
     # It's more secure to have 32 characters
     def gen_long_uuid()
-      CGI::Session.generate_unique_id('kontagent')
+      CGI::Session.generate_unique_id('kontagent') 
+    rescue 
+      # Rails 2.3
+      ActiveSupport::SecureRandom.hex(16)
     end
     
     private
