@@ -1,0 +1,1 @@
+<img src="<%=@track_page_view_url%>" width=1 height=1 />
