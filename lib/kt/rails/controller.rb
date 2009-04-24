@@ -10,9 +10,9 @@ module Kt
       def self.included(controller)
         controller.extend(ClassMethods)
         #controller.before_filter(:capture_user_data)
-        # controller.before_filter(:handle_kontagent, :except=>[:post_remove, :handle_iframe])      
-        #         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
-              end
+        #controller.before_filter(:handle_kontagent, :except=>[:post_remove, :handle_iframe])      
+        #controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
+      end
       
       # DEPRECATED : we don't use iframes to track page views anymore.
       def handle_iframe
