@@ -1,14 +1,16 @@
-# Kontagent facebooker version 0.1.6
+# Kontagent facebooker version 0.2.0
 
 require 'kt/kt_comm_layer'
+require 'kt/kt_ab_testing'
 require 'kt/queue/task'
 require 'digest/md5'
-#require 'ruby-debug'
+require 'ruby-debug'
 
 module Kt
   class KtAnalytics
     @@URL_REGEX_STR = /(href\s*=.*?)(https?:\/\/[^\s>\'"]+)/ #matches all the urls
     @@URL_WITH_NO_HREF_REGEX_STR = /(https?:\/\/[^\s>\'"]+)/ #matches all the urls 
+    @@KT_AB_MSG = /\{\*KT_AB_MSG\*\}/
     @@S_undirected_types = {:pr=>:pr, :fdp=>:fdp, :ad=>:ad, :ap=>:ap}
     @@S_directed_types = {:in=>:in, :nt=>:nt, :nte=>:nte}
     @@S_kt_args = {:kt_uid=>1, :kt_d=>1, :kt_type=>1, :kt_ut=>1, :kt_t=>1, :kt_st1=>1, :kt_st2=>1}
@@ -17,8 +19,8 @@ module Kt
     @@S_directed_val = 'd';
     @@S_undirected_val = 'u';
     @@instance_obj = nil
-
-    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url
+    
+    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url, :m_ab_testing_mgr
     
     def self.instance()
       if @@instance_obj == nil
@@ -69,7 +71,7 @@ module Kt
       else
         app_config_map = @config
       end
-
+      
       if app_config_map['use_test_server'] == true
         if @config['kt_host_test_port'].blank? or @config['kt_host_test_port'].nil?
           @m_kt_host_port = 80
@@ -107,12 +109,48 @@ module Kt
       @m_call_back_host = app_config_map['call_back_host']
       @m_mode = (@config['mode'] == 'async') ? :async : :sync
       @m_timeout = @config['timeout'].blank? ? 1 : @config['timeout'].to_i
+      
+      ##### possibly overriding ab_testing_host/port with some testing host port #####
+      if app_config_map.has_key? 'ab_testing_host'
+        @m_ab_testing_host = app_config_map['ab_testing_host']
+      elsif @config.has_key? 'ab_testing_host'
+        @m_ab_testing_host = @config['ab_testing_host']
+      end
+      
+      if app_config_map.has_key? 'ab_testing_port'
+        @m_ab_testing_port = app_config_map['ab_testing_port']
+      elsif @config.has_key? 'ab_testing_port'
+        @m_ab_testing_port = @config['ab_testing_port']
+      end
+
+      ##### the normal ab_testing_host/port #####
+      if @m_ab_testing_host.nil? and @m_ab_testing_port.nil?
+        if app_config_map.has_key? 'use_ab' or @config.has_key? 'use_ab'
+          @m_ab_testing_host = 'http://www.kontagent.com'
+          @m_ab_testing_port = 80
+        end
+      end
+    end
+
+    public
+    def format_kt_st1(st1_str)
+      return "aB_"+st1_str
+    end
+
+    def format_kt_st2(st2_str)
+      return "m"+st2_str.to_s
+    end
+
+    def format_kt_st3(st3_str)
+      return "p"+st3_str.to_s
     end
     
-    public
-    def init(custom_conf = nil)
-      init_from_conf(custom_conf)
+    def init()
+      init_from_conf()
       @m_comm = Kt::KtComm.instance(@m_kt_host, @m_kt_host_port)
+      @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
+                                                     @m_ab_testing_host, 
+                                                     @m_ab_testing_port) #TODO: get rid of the hardcoding stuff
     end
 
     def append_kt_query_str(original_url, query_str)
@@ -130,7 +168,6 @@ module Kt
     def get_page_tracking_url(fb_user_id)
       arg_hash = {}
       arg_hash['s'] = fb_user_id
-      
       @m_comm.get_call_url(@m_kt_url, "v1",
 			   @m_kt_api_key, @m_kt_secret_key,
 			   "pgr",
@@ -140,7 +177,7 @@ module Kt
     def get_invite_post_link_and_uuid(post_link,  uid, template_id)
       uuid = gen_long_uuid
       url = get_invite_post_link(post_link, uid, uuid, template_id)
-      return url, uuid
+      return url , uuid
     end
     
     def get_invite_post_link(post_link, uid, uuid, template_id)
@@ -159,6 +196,28 @@ module Kt
       return r_url
     end
 
+    def get_invite_post_link_and_uuid_vo(post_link, uid, campaign)
+      uuid = gen_long_uuid
+      url = get_invite_post_link_vo(post_link, uid, uuid, campaign)
+      return url , uuid
+    end
+
+    def get_invite_post_link_vo(post_link, uid, uuid, campaign)
+      arg_hash = {}
+      arg_hash['kt_uid'] = uid
+      arg_hash['kt_ut'] = uuid
+      arg_hash['kt_type'] = 'ins'
+      arg_hash['kt_d'] = @@S_directed_val
+      
+      arg_hash['kt_st1'] = format_kt_st1(campaign)
+      msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign)
+      arg_hash['kt_st2'] = format_kt_st2(msg_id)
+      page_id, page_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_info(campaign)
+      arg_hash['kt_st3'] = format_kt_st3(page_id)
+      
+      r_url = append_kt_query_str(post_link, arg_hash.to_query)
+      return r_url
+    end
 
     def get_invite_content_link(content_link, uid, uuid, template_id, subtype1, subtype2)
       arg_hash = {}
@@ -180,7 +239,7 @@ module Kt
       r_url = append_kt_query_str(content_link, arg_hash.to_query)
       return r_url
     end
-    
+
     
     def get_invite_content_link_and_uuid(content_link, uid, template_id, subtype1, subtype2)
       uuid = gen_long_uuid
@@ -188,9 +247,31 @@ module Kt
       return url, uuid
     end
 
+    def get_invite_content_link_and_uuid_vo(content_link, uid, campaign)
+      uuid = gen_long_uuid
+      url = get_invite_post_link_vo(content_link, uid, uuid, campaign)
+      return url, uuid
+    end
+
+    def get_invite_content_link_vo(content_link, uid, uuid, campaign)
+      arg_hash = {}
+      arg_hash['kt_uid'] = uid
+      arg_hash['kt_ut'] = uuid
+      arg_hash['kt_type'] = 'in'
+      arg_hash['kt_d'] = @@S_directed_val
+
+      arg_hash['kt_st1'] = format_kt_st1(campaign) 
+      msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign)
+      arg_hash['kt_st2'] = format_kt_st2(msg_id)
+      page_id, page_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_info(campaign)
+      arg_hash['kt_st3'] = format_kt_st3(page_id)
+      
+      r_url = append_kt_query_str(content_link, arg_hash.to_query)
+      return r_url
+    end
     
     def gen_kt_comm_link(input_txt, comm_type, template_id, subtype1, subtype2)
-      uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2)
+      uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, nil)
       input_txt = input_txt.gsub(@@URL_REGEX_STR){|match|
         if $1.nil?
           append_kt_query_str($2, query_str)
@@ -198,11 +279,31 @@ module Kt
           $1 + append_kt_query_str($2, query_str)
         end
       }
+      
       return uuid,input_txt
     end #gen_kt_comm_link
 
+
+    def gen_kt_comm_link_vo(input_txt, comm_type, template_id, campaign, msg_id, page_id, msg_txt)
+      uuid, query_str = gen_kt_comm_query_str(comm_type, template_id, 
+                                              format_kt_st1(campaign), 
+                                              format_kt_st2(msg_id), 
+                                              format_kt_st3(page_id))
+      input_txt = input_txt.gsub(@@URL_WITH_NO_HREF_REGEX_STR){|match|
+        if $1.nil?
+          input_txt
+        else
+          append_kt_query_str($1, query_str)
+        end
+      }
+      input_txt = input_txt.gsub(@@KT_AB_MSG){|match|
+        msg_txt
+      }
+      return uuid, input_txt
+    end
+
     def gen_kt_comm_link_no_href(input_txt, comm_type, template_id, subtype1, subtype2)
-      uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2)
+      uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, nil)
       input_txt = input_txt.gsub(@@URL_WITH_NO_HREF_REGEX_STR){|match|
         if $1.nil?
           input_txt
@@ -213,47 +314,59 @@ module Kt
       return uuid, input_txt
     end #gen_kt_comm_link_no_href    
 
+    def gen_kt_comm_link_no_href_vo(input_txt, comm_type, template_id, campaign, msg_id, page_id)
+      uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, 
+                                             format_kt_st1(campaign), 
+                                             format_kt_st2(msg_id), 
+                                             format_kt_st3(page_id))
+      input_txt = input_txt.gsub(@@URL_WITH_NO_HREF_REGEX_STR){|match|
+        if $1.nil?
+          input_txt
+        else
+          append_kt_query_str($1, query_str)
+        end
+      }
+      return uuid, input_txt
+    end 
+
     def send_user_data_impl(user)
-      time("making API calls for Kontagent user data") do
-        arg_hash = {}
+      arg_hash = {}
       
-        if !user.birthday.blank? && user.birthday != ''
-          arg_hash['b'] = user.birthday
-        end
-        if !user.sex.blank? && user.sex != ''
-          arg_hash['g'] = user.sex
-        end
-      
-        # if !user.current_location.city.blank? &&user.current_location.city != ''
-        #   arg_hash['ly'] = user.current_location.city
-        # end
-        # if !user.current_location.state.blank? && user.current_location.state != ''
-        #   arg_hash['ls'] = user.current_location.state
-        # end
-        # if !user.current_location.country.blank? && user.current_location.country != ''
-        #   arg_hash['lc'] = user.current_location.country
-        # end
-        # if !user.current_location.zip.blank? && user.current_location.zip != ''
-        #   arg_hash['lp'] = user.current_location.zip
-        # end
-        #       
-        # 
-        # if !user.hometown_location.city.blank? &&user.hometown_location.city != ''
-        #   arg_hash['ly'] = user.hometown_location.city
-        # end
-        # if !user.hometown_location.state.blank? && user.hometown_location.state != ''
-        #   arg_hash['ls'] = user.hometown_location.state
-        # end
-        # if !user.hometown_location.country.blank? && user.hometown_location.country != ''
-        #   arg_hash['lc'] = user.hometown_location.country
-        # end
-        # if !user.hometown_location.zip.blank? && user.hometown_location.zip != ''
-        #   arg_hash['lp'] = user.hometown_location.zip
-        # end
-      
-        arg_hash['f'] = user.friends.size.to_s
-        # RAILS_DEFAULT_LOGGER.warn arg_hash.inspect # LOCAL
+      if !user.birthday.blank? && user.birthday != ''
+        arg_hash['b'] = user.birthday
       end
+      if !user.sex.blank? && user.sex != ''
+        arg_hash['g'] = user.sex
+      end
+      
+#       if !user.current_location.city.blank? &&user.current_location.city != ''
+#         arg_hash['ly'] = user.current_location.city
+#       end
+#       if !user.current_location.state.blank? && user.current_location.state != ''
+#         arg_hash['ls'] = user.current_location.state
+#       end
+#       if !user.current_location.country.blank? && user.current_location.country != ''
+#         arg_hash['lc'] = user.current_location.country
+#       end
+#       if !user.current_location.zip.blank? && user.current_location.zip != ''
+#         arg_hash['lp'] = user.current_location.zip
+#       end
+      
+
+#       if !user.hometown_location.city.blank? &&user.hometown_location.city != ''
+#         arg_hash['ly'] = user.hometown_location.city
+#       end
+#       if !user.hometown_location.state.blank? && user.hometown_location.state != ''
+#         arg_hash['ls'] = user.hometown_location.state
+#       end
+#       if !user.hometown_location.country.blank? && user.hometown_location.country != ''
+#         arg_hash['lc'] = user.hometown_location.country
+#       end
+#       if !user.hometown_location.zip.blank? && user.hometown_location.zip != ''
+#         arg_hash['lp'] = user.hometown_location.zip
+#       end
+      
+      arg_hash['f'] = user.friends.size.to_s
       
       kt_outbound_msg('cpu', arg_hash)
       return true
@@ -305,9 +418,12 @@ module Kt
       arg_hash['s'] = request_params[:kt_uid]
       arg_hash['r'] = request_params[:ids].is_a?(Array) ? request_params[:ids] * "," : request_params[:ids]
       arg_hash['u'] = request_params[:kt_ut]
-      if request_params['kt_t'] != nil
-        arg_hash['t'] = request_params[:kt_t]
-      end
+      
+      arg_hash['t']   = request_params[:kt_t]   if !request_params['kt_t'].nil?
+      arg_hash['st1'] = request_params[:kt_st1] if !request_params['kt_st1'].nil?
+      arg_hash['st2'] = request_params[:kt_st2] if !request_params['kt_st2'].nil?
+      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?
+      
       kt_outbound_msg('ins', arg_hash)
     end
 
@@ -317,15 +433,11 @@ module Kt
       arg_hash['u'] = request_params[:kt_ut]
       arg_hash['tu'] = 'inr'
       
-      if request_params[:kt_t] != nil
-        arg_hash['t'] = request_params[:kt_t]
-      end
-      if request_params[:kt_st1] != nil
-        arg_hash['st1'] = request_params[:kt_st1]
-      end
-      if request_params[:kt_st2] != nil
-        arg_hash['st2'] = request_params[:kt_st2]
-      end
+      arg_hash['t']   = request_params[:kt_t]   if !request_params['kt_t'].nil?
+      arg_hash['st1'] = request_params[:kt_st1] if !request_params['kt_st1'].nil?
+      arg_hash['st2'] = request_params[:kt_st2] if !request_params['kt_st2'].nil?
+      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?
+      
       kt_outbound_msg('inr', arg_hash)
     end
 
@@ -348,6 +460,7 @@ module Kt
       arg_hash['t'] = request_params[:kt_t] unless request_params[:kt_t] == nil
       arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
       arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil
       arg_hash['tu'] = request_params[:kt_type] 
       arg_hash['s'] = get_fb_param(request_params, 'user')
       short_tag = gen_short_uuid
@@ -358,42 +471,29 @@ module Kt
     end
 
     def kt_outbound_msg(type, arg_hash)
-      time("sending Kontagent message (#{arg_hash.inspect})") do
-        if @m_mode == :async      
-          #timeout(@m_timeout) do
-          data_hash = {
-            :qtype => :kt_outbound,
-            :ctype => type,
-            :v => 'v1',
-            :kt_api_key => @m_kt_api_key,
-            :kt_secret_key => @m_kt_secret_key,
-            :kt_call_back_host => @m_kt_host,
-            :kt_call_back_port => @m_kt_host_port,
-            :kt_url => @m_kt_url,
-            :arg_hash => arg_hash,
-          }
-          Kt::Queue::Task.publish :record, data_hash
-          #end
-        else
-          @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
-        end
+      if @m_mode == :async      
+        #timeout(@m_timeout) do
+        data_hash = {
+          :qtype => :kt_outbound,
+          :ctype => type,
+          :v => 'v1',
+          :kt_api_key => @m_kt_api_key,
+          :kt_secret_key => @m_kt_secret_key,
+          :kt_call_back_host => @m_kt_host,
+          :kt_call_back_port => @m_kt_host_port,
+          :kt_url => @m_kt_url,
+          :arg_hash => arg_hash,
+        }
+        Kt::Queue::Task.publish :record, data_hash
+        #end
+      else
+        @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
       end
-    end
-    
-    # New Relic tracking of API calls
-    begin
-      require "#{RAILS_ROOT}/vendor/plugins/rpm/init"
-      add_method_tracer :kt_outbound_msg, 'Custom/Kontagent/kt_outbound_msg'
-    rescue
-      puts "Failed to add New Relic instrumentation to Kontagent."
     end
     
     # It's more secure to have 32 characters
     def gen_long_uuid()
-      CGI::Session.generate_unique_id('kontagent') 
-    rescue 
-      # Rails 2.3
-      ActiveSupport::SecureRandom.hex(16)
+      CGI::Session.generate_unique_id('kontagent')
     end
     
     private
@@ -404,15 +504,12 @@ module Kt
       if request_params.has_key? 'kt_ut'
         arg_hash['u'] = request_params[:kt_ut]
       end
-      if request_params.has_key? 'kt_t'
-        arg_hash['t'] = request_params[:kt_t]
-      end
-      if request_params.has_key? 'kt_st1'
-        arg_hash['st1'] = request_params[:kt_st1]
-      end
-      if request_params.has_key? 'kt_st2'
-        arg_hash['st2'] = request_params[:kt_st2]
-      end
+      
+      arg_hash['t'] = request_params[:kt_t] if request_params.has_key? 'kt_t'
+      arg_hash['st1'] = request_params[:kt_st1] if request_params.has_key? 'kt_st1'
+      arg_hash['st2'] = request_params[:kt_st2] if request_params.has_key? 'kt_st2'
+      arg_hash['st3'] = request_params[:kt_st3] if request_params.has_key? 'kt_st3'
+
       uid = get_fb_param(request_params, 'user')
       if uid != 0
         arg_hash['r'] = uid
@@ -433,7 +530,7 @@ module Kt
     end
     
     
-    def gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2)
+    def gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, subtype3)
       param_array = {}
       uuid = 0
       
@@ -455,17 +552,10 @@ module Kt
         param_array[:kt_ut] = uuid
       end
       
-      if template_id != nil
-        param_array[:kt_t] = template_id.to_s
-      end
-      
-      if subtype1 != nil
-        param_array[:kt_st1] = subtype1
-      end
-
-      if subtype2 != nil
-        param_array[:kt_st2] = subtype2
-      end
+      param_array[:kt_t] = template_id.to_s if !template_id.nil?
+      param_array[:kt_st1] = subtype1 if !subtype1.nil?
+      param_array[:kt_st2] = subtype2 if !subtype2.nil?
+      param_array[:kt_st3] = subtype3 if !subtype3.nil?
       
       return uuid, param_array.to_query
     end #gen_kt_comm_query_str

@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.1.6
+# Kontagent facebooker version 0.2.0
 
 module Kt
   module Queue
