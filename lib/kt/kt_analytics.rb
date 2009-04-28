@@ -145,8 +145,8 @@ module Kt
       return "p"+st3_str.to_s
     end
     
-    def init()
-      init_from_conf()
+    def init(custom_conf = nil)
+      init_from_conf(custom_conf) # to allow use of dynamic configs that aren't in the YML
       @m_comm = Kt::KtComm.instance(@m_kt_host, @m_kt_host_port)
       @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
                                                      @m_ab_testing_host, 

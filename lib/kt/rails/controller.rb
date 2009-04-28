@@ -173,7 +173,7 @@ module Kt
 # 	puts "param_hash \n\t #{param_hash.to_query}"
 # 	puts "return_url \n\t#{Kt::KtAnalytics.instance.append_kt_query_str(r_url, param_hash.to_query)}"
         
-	r_url = Kt::KtAnalytics.instance.append_kt_query_str("/"+Kt::KtAnalytics.instance.m_canvas_name+r_url, 
+	      r_url = Kt::KtAnalytics.instance.append_kt_query_str("/"+Kt::KtAnalytics.instance.m_canvas_name+r_url, 
 							     param_hash.to_query)
         #puts "final_url \n\t#{r_url}"
 	
