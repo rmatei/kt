@@ -38,7 +38,7 @@ module Facebooker
         else
           arg_hash['st1'] = st1
           arg_hash['st2'] = st2
-          arg_hash['st3'] = st3
+          arg_hash['st3'] = st3 rescue nil
         end
         
         Kt::KtAnalytics.instance.kt_outbound_msg('nts', arg_hash)
