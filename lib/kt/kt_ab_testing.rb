@@ -28,7 +28,9 @@ module Kt
       @m_memcached_server = MemCache.new '127.0.0.1'
       @m_selected_msg_page_pair_dict = {}
     rescue Exception => e
+      # LOCAL - to save our tests...
       puts "Failed to initialize KT A/B testing: #{e.message}"
+      RAILS_DEFAULT_LOGGER.warn "Failed to initialize KT A/B testing: #{e.message}"
     end
 
     private
