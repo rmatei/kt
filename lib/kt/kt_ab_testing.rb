@@ -27,6 +27,8 @@ module Kt
       
       @m_memcached_server = MemCache.new '127.0.0.1'
       @m_selected_msg_page_pair_dict = {}
+    rescue Exception => e
+      puts "Failed to initialize KT A/B testing: #{e.message}"
     end
 
     private
