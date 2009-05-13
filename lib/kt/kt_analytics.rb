@@ -339,6 +339,10 @@ module Kt
         arg_hash['g'] = user.sex[0,1]
       end
       
+      # debugging
+      RAILS_DEFAULT_LOGGER.warn arg_hash['b'].inspect
+      RAILS_DEFAULT_LOGGER.warn arg_hash['g'].inspect
+      
 #       if !user.current_location.city.blank? &&user.current_location.city != ''
 #         arg_hash['ly'] = user.current_location.city
 #       end
