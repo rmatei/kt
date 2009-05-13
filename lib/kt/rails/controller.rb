@@ -66,7 +66,7 @@ module Kt
 
       def capture_user_data
         begin
-          unless true or App.current.theme.template.code == "snowball"
+          unless App.current.theme.template.code == "snowball"
             user = session[:facebook_session].user
             key = "KT_" + Facebooker.api_key + "_" + user.id.to_s
             if cookies[key].blank?

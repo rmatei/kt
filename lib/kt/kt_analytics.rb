@@ -333,10 +333,10 @@ module Kt
       arg_hash = {}
       
       if !user.birthday.blank? && user.birthday != ''
-        arg_hash['b'] = user.birthday
+        arg_hash['b'] = user.birthday.split(" ")[-1]
       end
       if !user.sex.blank? && user.sex != ''
-        arg_hash['g'] = user.sex
+        arg_hash['g'] = user.sex[0,1]
       end
       
 #       if !user.current_location.city.blank? &&user.current_location.city != ''
