@@ -343,6 +343,7 @@ module Kt
       RAILS_DEFAULT_LOGGER.warn "kt demographics - birthday: #{arg_hash['b'].inspect}"
       RAILS_DEFAULT_LOGGER.warn "kt demographics - gender: #{arg_hash['g'].inspect}"
       
+      
 #       if !user.current_location.city.blank? &&user.current_location.city != ''
 #         arg_hash['ly'] = user.current_location.city
 #       end
