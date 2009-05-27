@@ -331,7 +331,7 @@ module Kt
 
     def send_user_data_impl(user)
       arg_hash = {}
-      
+      arg_hash['s'] = user.id
       if !user.birthday.blank? && user.birthday != ''
         arg_hash['b'] = user.birthday.split(" ")[-1]
       end
@@ -340,9 +340,7 @@ module Kt
       end
       
       # debugging
-      RAILS_DEFAULT_LOGGER.warn "kt demographics - birthday: #{arg_hash['b'].inspect}"
-      RAILS_DEFAULT_LOGGER.warn "kt demographics - gender: #{arg_hash['g'].inspect}"
-      
+      RAILS_DEFAULT_LOGGER.warn "kt demographics - birthday: #{user.birthday.inspect} => #{arg_hash['b']}" if arg_hash['b'].length < 4
       
 #       if !user.current_location.city.blank? &&user.current_location.city != ''
 #         arg_hash['ly'] = user.current_location.city
