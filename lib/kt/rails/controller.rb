@@ -1,7 +1,7 @@
-# Kontagent facebooker version 0.1.6
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 require 'kt/kt_analytics'
 require 'facebooker'
-#require 'ruby-debug'
+require 'ruby-debug'
 
 module Kt
   module Rails
@@ -9,9 +9,16 @@ module Kt
 
       def self.included(controller)
         controller.extend(ClassMethods)
+        controller.before_filter(:store_user_id)
         controller.before_filter(:capture_user_data)
         controller.before_filter(:handle_kontagent, :except=>[:post_remove, :handle_iframe])      
         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
+      end
+      
+      def set_ab_testing_page(campaign)
+        page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
+        msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
+        Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
       end
       
       # DEPRECATED : we don't use iframes to track page views anymore.
@@ -52,6 +59,11 @@ module Kt
         end
       end
 
+      def store_user_id
+        $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
+        return true
+      end
+
       def capture_user_data
         begin
           user = session[:facebook_session].user
@@ -69,8 +81,7 @@ module Kt
 
       def handle_kontagent
         get_params = params
-        $CURR_API_KEY = request.parameters[:fb_sig_api_key] if $CURR_API_KEY.nil?
-
+        
         # trace uninstall
         if params.has_key? :fb_sig_uninstall
           Kt::KtAnalytics.instance.save_app_removed(params)
