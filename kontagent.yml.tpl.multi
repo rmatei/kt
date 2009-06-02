@@ -78,6 +78,13 @@
     #              ************************** IMPORTANT ***************************
     use_test_server: false
 
+    # Parameter : use_ab
+    #
+    # Description: Set use_ab to true to enable ab_testing. You also need to be granted permissions in order 
+    #              to have ab testing fully functional. 
+    # 
+    use_ab: false
+
 ###############################################################################
 #                          starling configuration                             #
 ###############################################################################

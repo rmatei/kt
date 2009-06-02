@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.1.6
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 # Install hook code here
 require 'fileutils'
 require 'rubygems'

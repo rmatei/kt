@@ -113,8 +113,10 @@ module Kt
       ##### possibly overriding ab_testing_host/port with some testing host port #####
       if app_config_map.has_key? 'ab_testing_host'
         @m_ab_testing_host = app_config_map['ab_testing_host']
+        @use_ab = true
       elsif @config.has_key? 'ab_testing_host'
         @m_ab_testing_host = @config['ab_testing_host']
+        @use_ab = true
       end
       
       if app_config_map.has_key? 'ab_testing_port'
@@ -122,12 +124,13 @@ module Kt
       elsif @config.has_key? 'ab_testing_port'
         @m_ab_testing_port = @config['ab_testing_port']
       end
-
+      
       ##### the normal ab_testing_host/port #####
       if @m_ab_testing_host.nil? and @m_ab_testing_port.nil?
-        if app_config_map.has_key? 'use_ab' or @config.has_key? 'use_ab'
+        if (app_config_map.has_key? 'use_ab' and app_config_map['use_ab'] == true) or (@config.has_key? 'use_ab'  and @config['use_ab'] == true)
           @m_ab_testing_host = 'http://www.kontagent.com'
           @m_ab_testing_port = 80
+          @use_ab = true
         end
       end
     end
@@ -158,11 +161,13 @@ module Kt
     def init(custom_conf = nil)
       init_from_conf(custom_conf) # to allow use of dynamic configs that aren't in the YML
       @m_comm = Kt::KtComm.instance(@m_kt_host, @m_kt_host_port)
-      @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
-                                                     @m_ab_testing_host, 
-                                                     @m_ab_testing_port) #TODO: get rid of the hardcoding stuff
+      if @use_ab
+        @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
+                                                       @m_ab_testing_host, 
+                                                       @m_ab_testing_port) #TODO: get rid of the hardcoding stuff
+      end
     end
-
+      
     def append_kt_query_str(original_url, query_str)
       if original_url =~ /\?/
         return original_url + "&" + query_str

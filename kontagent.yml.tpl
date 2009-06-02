@@ -77,6 +77,7 @@ call_back_req_uri:
 #              ************************** IMPORTANT ***************************
 use_test_server: false
 
+
 ###############################################################################
 #                          starling configuration                             #
 ###############################################################################
@@ -128,3 +129,10 @@ kt_url: /api
 #              the test mode is enabled. Do NOT change this value.
 #
 kt_host_test: api.test.kontagent.net
+
+# Parameter : use_ab
+#
+# Description: Set use_ab to true to enable ab_testing. You also need to be granted permissions in order 
+#              to have ab testing fully functional. 
+# 
+use_ab: false
