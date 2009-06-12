@@ -204,8 +204,11 @@ module Kt
 
 end  # module
 
-# mgr = Kt::AB_Testing_Manager.new('ea04b006c8174440a264ab4ab5b1e4e0', '45237b3a91184c389a4c12f38e7fe755',
-#                                  'http://kthq.dyndns.org', 9999)
-# #mgr.fetch_ab_testing_data('hello')
-# puts mgr.get_ab_testing_message('hello')
+#mgr = Kt::AB_Testing_Manager.new('56956a4098794fdc98e582f052205b1b', '03df281d926f4e5a9e409cd14f31c060',
+#                                 'http://www.kontagent.com', 80)
+#mgr = Kt::AB_Testing_Manager.new('ea04b006c8174440a264ab4ab5b1e4e0', '45237b3a91184c389a4c12f38e7fe755',
+#                                 'http://www.kontagent.com', 80)
+#                                 'http://kthq.dyndns.org', 9999)
+# mgr.fetch_ab_testing_data('hello')
+#puts mgr.get_ab_testing_message('test_u2u_notif')
 # puts mgr.get_ab_testing_page('hello')
