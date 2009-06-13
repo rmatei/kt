@@ -66,14 +66,14 @@ module Kt
 
       def capture_user_data
         begin
-          unless App.current.theme.template.code == "snowball"
+          #unless App.current.theme.template.code == "snowball"
             user = session[:facebook_session].user
             key = "KT_" + Facebooker.api_key + "_" + user.id.to_s
             if cookies[key].blank?
               Kt::KtAnalytics.instance.send_user_data(user)
             end
             cookies[key] = {:value => 1.to_s , :expires => 2.weeks.from_now} # 2 weeks
-          end
+          #end
         rescue 
           # invalid session key.
         end
