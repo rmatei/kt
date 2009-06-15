@@ -110,8 +110,8 @@ module Kt
             short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params)
           else
           end
-          
-          if params[:kt_type] != "in"
+
+          if params[:kt_type] != "ins"
             # forward to the url without the kt_* params
             f_url =  get_stripped_kt_args_url(short_tag)
             #puts "f_url \n\t #{f_url}" #xxx
