@@ -10,7 +10,7 @@ module Kt
       def self.included(controller)
         controller.extend(ClassMethods)
         controller.before_filter(:store_user_id)
-        controller.before_filter(:capture_user_data)
+        #controller.before_filter(:capture_user_data)
         controller.before_filter(:handle_kontagent, :except=>[:post_remove, :handle_iframe])      
         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
       end
