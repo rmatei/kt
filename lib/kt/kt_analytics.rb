@@ -160,7 +160,7 @@ module Kt
         if query_str == nil || query_str == ""
           return original_url
         else
-          return original_url + "?" + query_str
+          return original_url + "?" + query_str rescue ""
         end
       end
     end
