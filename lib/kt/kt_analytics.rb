@@ -60,7 +60,23 @@ module Kt
     def initialize()
       
     end
+
+    def gen_ut_cookie_key()
+      return @m_kt_api_key + "_ut"
+    end
+
+    def gen_sut_cookie_key()
+      return @m_kt_api_key + "_sut"
+    end
+
+    def store_ut_key_in_cookie(cookies, ut)
+      cookies[gen_ut_cookie_key()] = {:value => ut, :expires => 10.minutes.from_now } 
+    end
     
+    def store_sut_key_in_cookie(cookies, sut)
+      cookies[gen_sut_cookie_key()] = {:value => sut, :expired => 10.minutes.from_now }
+    end
+
     def init_from_conf(custom_conf = nil)
       @config = YAML::load_file("#{RAILS_ROOT}/config/kontagent.yml")
       @config.merge! custom_conf if custom_conf
@@ -407,25 +423,37 @@ module Kt
     end
     
     
-    def save_app_added(request_params)
-      has_direction = false
-      if request_params[:d] != nil
-        has_direction = true
-      end
+    def save_app_added(request_params, cookies)
+#       has_direction = false
+#       if request_params[:d] != nil
+#         has_direction = true
+#       end
       
       arg_hash = {}
       
       arg_hash['s'] = get_fb_param(request_params, 'user')
       
-      if has_direction == true and request_params[:d] == @@S_directed_val
-        arg_hash['u'] = request_params[:ut]
+      if not cookies[gen_ut_cookie_key()].blank?
+        arg_hash['u'] = cookies[gen_ut_cookie_key()]
+        cookies.delete gen_ut_cookie_key()
+        kt_outbound_msg('apa', arg_hash)        
+      elsif not cookies[gen_sut_cookie_key()].blank?
+        arg_hash['su'] = cookies[gen_sut_cookie_key()]
+        cookies.delete gen_sut_cookie_key()
         kt_outbound_msg('apa', arg_hash)
-      elsif has_direction == true and request_params[:d] == @@S_undirected_val
-        arg_hash['su'] = request_params[:sut]
-        kt_outbound_msg('apa', arg_hash)
-      else # no viral
+      else
         kt_outbound_msg('apa', arg_hash)
       end
+
+#       if has_direction == true and request_params[:d] == @@S_directed_val
+#         arg_hash['u'] = request_params[:ut]
+#         kt_outbound_msg('apa', arg_hash)
+#       elsif has_direction == true and request_params[:d] == @@S_undirected_val
+#         arg_hash['su'] = request_params[:sut]
+#         kt_outbound_msg('apa', arg_hash)
+#       else # no viral
+#         kt_outbound_msg('apa', arg_hash)
+#       end
     end
     
     def save_invite_send(request_params)
@@ -442,7 +470,7 @@ module Kt
       kt_outbound_msg('ins', arg_hash)
     end
 
-    def save_invite_click(request_params)
+    def save_invite_click(request_params, cookies)
       arg_hash = {}
       arg_hash['i'] = get_fb_param(request_params, 'added')
       arg_hash['u'] = request_params[:kt_ut]
@@ -453,23 +481,26 @@ module Kt
       arg_hash['st2'] = request_params[:kt_st2] if !request_params['kt_st2'].nil?
       arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?
       
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
       kt_outbound_msg('inr', arg_hash)
     end
 
 
-    def save_notification_click(request_params)
+    def save_notification_click(request_params, cookies)
       msg_type = 'ntr'
       arg_hash = construct_arg_hash_for_click_event_helper(msg_type, request_params)
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
       kt_outbound_msg(msg_type, arg_hash)
     end
     
-    def save_notification_email_click(request_params)
+    def save_notification_email_click(request_params, cookies)
       msg_type = 'nei'
       arg_hash = construct_arg_hash_for_click_event_helper(msg_type, request_params)
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])      
       kt_outbound_msg(msg_type, arg_hash)
     end
     
-    def save_undirected_comm_click(request_params)
+    def save_undirected_comm_click(request_params, cookies)
       msg_type = 'ucc'
       arg_hash = {}
       arg_hash['t'] = request_params[:kt_t] unless request_params[:kt_t] == nil
@@ -481,6 +512,7 @@ module Kt
       short_tag = gen_short_uuid
       arg_hash['su'] = short_tag
       arg_hash['i'] = get_fb_param(request_params, 'added')
+      store_sut_key_in_cookie(cookies, short_tag)
       kt_outbound_msg(msg_type, arg_hash)
       return short_tag
     end

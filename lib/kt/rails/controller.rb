@@ -89,8 +89,8 @@ module Kt
         end
 
         # track install 
-        if params.has_key? :installed and params[:installed] == "1"
-          Kt::KtAnalytics.instance.save_app_added(params)
+        if params.has_key? :fb_sig_added and params[:fb_sig_added] == "1"
+          Kt::KtAnalytics.instance.save_app_added(params, cookies)
         end
         
         
@@ -101,13 +101,13 @@ module Kt
           when "ins" # invite sent
             Kt::KtAnalytics.instance.save_invite_send(params)
           when "in"  # invite click
-            Kt::KtAnalytics.instance.save_invite_click(params)
+            Kt::KtAnalytics.instance.save_invite_click(params, cookies)
           when "nt" # notification click
-            Kt::KtAnalytics.instance.save_notification_click(params)
+            Kt::KtAnalytics.instance.save_notification_click(params, cookies)
           when "nte" # email notification
-            Kt::KtAnalytics.instance.save_notification_email_click(params)
+            Kt::KtAnalytics.instance.save_notification_email_click(params, cookies)
           when "fdp"
-            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params)
+            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
           else
           end
 
