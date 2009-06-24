@@ -64,6 +64,7 @@ module Kt
         return true
       end
 
+
       def capture_user_data
         begin
           user = session[:facebook_session].user
@@ -88,11 +89,14 @@ module Kt
           return true
         end
 
-        # track install 
-        if params.has_key? :fb_sig_added and params[:fb_sig_added] == "1"
-          Kt::KtAnalytics.instance.save_app_added(params, cookies)
+        if cookies[gen_kt_install_cookie_key()].nil? or cookies[gen_kt_install_cookie_key()].blank?
+          cookies[gen_kt_install_cookie_key()] = {:value => params[:fb_sig_added], :expires => 1.minute.from_now}
+        else
+          if cookies[gen_kt_install_cookie_key()] == "0" and params.has_key? :fb_sig_added and params[:fb_sig_added] == "1" 
+            Kt::KtAnalytics.instance.save_app_added(params, cookies)
+            cookies[gen_kt_install_cookie_key()] = {:value => params[:fb_sig_added], :expires => 1.minute.from_now}
+          end
         end
-        
         
         short_tag=nil
         if params.has_key? :kt_type
@@ -127,6 +131,10 @@ module Kt
 
       
       private
+      def gen_kt_install_cookie_key()
+        return "KT_"+Facebooker.api_key+"_installed"
+      end
+
       def get_stripped_kt_args_url (short_tag = nil)
         get_params = request.parameters
         r_param_hash = {}
