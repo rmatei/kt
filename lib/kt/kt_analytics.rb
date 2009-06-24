@@ -538,6 +538,13 @@ module Kt
       end
     end
     
+    begin
+      require "#{RAILS_ROOT}/vendor/plugins/rpm/init"
+      add_method_tracer :kt_outbound_msg, 'Custom/Kontagent/kt_outbound_msg'
+    rescue
+      puts "Failed to add New Relic instrumentation to Kontagent."
+    end
+    
     # It's more secure to have 32 characters
     def gen_long_uuid()
       begin
