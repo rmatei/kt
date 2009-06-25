@@ -45,7 +45,13 @@ call_back_host:
 # Description: The call_back_req_uri value is the path component of your
 #              application's callback URL. For example, if your callback URL is
 #              www.example.com/myapp, this value should be set to '/myapp'. Note
+<<<<<<< HEAD:kontagent.yml.tpl
 #              that this value must start with a '/'.
+=======
+#              that this value must start with a '/'. However, if your callback URL
+#              is simply www.example.com/, this value should be left blank.
+#              
+>>>>>>> ffb0499da77b2bffd966eba49823370a38d745d2:kontagent.yml.tpl
 #
 # Example: /your_app_uri
 #

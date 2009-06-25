@@ -94,8 +94,7 @@ module Kt
         if params.has_key? :installed and params[:installed] == "1"
           Kt::KtAnalytics.instance.save_app_added(params)
         end
-        
-        
+                
         short_tag=nil
         if params.has_key? :kt_type
           # handle kontagent related parameters
@@ -127,6 +126,7 @@ module Kt
 
       
       private
+
       def get_stripped_kt_args_url (short_tag = nil)
         get_params = request.parameters
         r_param_hash = {}

@@ -60,7 +60,7 @@ module Kt
     def initialize()
       
     end
-    
+
     def init_from_conf(custom_conf = nil)
       @config = YAML::load_file("#{RAILS_ROOT}/config/kontagent.yml")
       @config.merge! custom_conf if custom_conf
@@ -374,7 +374,7 @@ module Kt
       kt_outbound_msg('cpu', arg_hash)
       return true
     end
-      
+
     def send_user_data(user)
       #sex', 'birthday', 'current_location', 'hometown_location
       if @m_mode == :async
@@ -386,14 +386,12 @@ module Kt
       else
         send_user_data_impl(user)
       end
-        
     end
 
     def save_app_removed(uid)
       arg_hash = {'s'=>uid}
       kt_outbound_msg('apr', arg_hash)
     end
-    
     
     def save_app_added(request_params)
       has_direction = false
@@ -439,11 +437,9 @@ module Kt
       arg_hash['t']   = request_params[:kt_t]   if !request_params['kt_t'].nil?
       arg_hash['st1'] = request_params[:kt_st1] if !request_params['kt_st1'].nil?
       arg_hash['st2'] = request_params[:kt_st2] if !request_params['kt_st2'].nil?
-      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?
-      
+      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?      
       kt_outbound_msg('inr', arg_hash)
     end
-
 
     def save_notification_click(request_params)
       msg_type = 'ntr'
