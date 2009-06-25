@@ -10,7 +10,7 @@ module Kt
         page_id, page_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_info(campaign)
         return page_text
       end
-      
+
       def kt_get_msg_text(campaign)
         msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign)
         return msg_text
