@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 require 'kt/queue/processor'
 require 'kt/kt_comm_layer'
 

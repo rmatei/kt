@@ -27,10 +27,6 @@ module Kt
       
       @m_memcached_server = MemCache.new '127.0.0.1'
       @m_selected_msg_page_pair_dict = {}
-    rescue Exception => e
-      # LOCAL - to save our tests...
-      puts "Failed to initialize KT A/B testing: #{e.message}"
-      RAILS_DEFAULT_LOGGER.warn "Failed to initialize KT A/B testing: #{e.message}"
     end
 
     private
@@ -42,7 +38,12 @@ module Kt
         end
 
         url = URI.parse(url_str)
-        req = Net::HTTP::Get.new(url.path+"?"+url.query)
+        if url.query.nil?
+          url_str = url.path
+        else
+          url_str = url.path + "?" + url.query
+        end
+        req = Net::HTTP::Get.new(url_str)
         res = Net::HTTP.start(url.host, url.port) {|http|
           http.request(req)
         }
@@ -116,6 +117,18 @@ module Kt
       return r
     end
     
+    
+    public
+    def get_ab_testing_campaign_handle_index(campaign)
+      dict = get_ab_helper(campaign)
+      if dict.nil?
+        return nil
+      else
+        json_obj = dict['json']        
+        return json_obj['handle_index']
+      end
+    end
+
     public
     def get_ab_testing_message(campaign)
       dict = get_ab_helper(campaign)
@@ -159,6 +172,15 @@ module Kt
       end
     end
 
+    def get_selected_msg_info_button(campaign)
+      msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
+      if msg_info.nil?
+        return nil
+      else
+        return msg_info[0], msg_info[3]
+      end
+    end
+
     def get_selected_page_info(campaign)
       page_info = @m_selected_msg_page_pair_dict[campaign]['page']
       if page_info.nil?
@@ -182,8 +204,11 @@ module Kt
 
 end  # module
 
-# mgr = Kt::AB_Testing_Manager.new('ea04b006c8174440a264ab4ab5b1e4e0', '45237b3a91184c389a4c12f38e7fe755',
-#                                  'http://kthq.dyndns.org', 9999)
-# #mgr.fetch_ab_testing_data('hello')
-# puts mgr.get_ab_testing_message('hello')
+#mgr = Kt::AB_Testing_Manager.new('56956a4098794fdc98e582f052205b1b', '03df281d926f4e5a9e409cd14f31c060',
+#                                 'http://www.kontagent.com', 80)
+#mgr = Kt::AB_Testing_Manager.new('ea04b006c8174440a264ab4ab5b1e4e0', '45237b3a91184c389a4c12f38e7fe755',
+#                                 'http://www.kontagent.com', 80)
+#                                 'http://kthq.dyndns.org', 9999)
+# mgr.fetch_ab_testing_data('hello')
+#puts mgr.get_ab_testing_message('test_u2u_notif')
 # puts mgr.get_ab_testing_page('hello')

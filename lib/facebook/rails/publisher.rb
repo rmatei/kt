@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 
 module Facebooker
   module Rails

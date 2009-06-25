@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 
 require 'kt/kt_comm_layer'
 require 'kt/kt_ab_testing'
@@ -61,6 +61,22 @@ module Kt
       
     end
 
+    def gen_ut_cookie_key()
+      return @m_kt_api_key + "_ut"
+    end
+
+    def gen_sut_cookie_key()
+      return @m_kt_api_key + "_sut"
+    end
+
+    def store_ut_key_in_cookie(cookies, ut)
+      cookies[gen_ut_cookie_key()] = {:value => ut, :expires => 10.minutes.from_now } 
+    end
+    
+    def store_sut_key_in_cookie(cookies, sut)
+      cookies[gen_sut_cookie_key()] = {:value => sut, :expired => 10.minutes.from_now }
+    end
+
     def init_from_conf(custom_conf = nil)
       @config = YAML::load_file("#{RAILS_ROOT}/config/kontagent.yml")
       @config.merge! custom_conf if custom_conf
@@ -113,8 +129,10 @@ module Kt
       ##### possibly overriding ab_testing_host/port with some testing host port #####
       if app_config_map.has_key? 'ab_testing_host'
         @m_ab_testing_host = app_config_map['ab_testing_host']
+        @use_ab = true
       elsif @config.has_key? 'ab_testing_host'
         @m_ab_testing_host = @config['ab_testing_host']
+        @use_ab = true
       end
       
       if app_config_map.has_key? 'ab_testing_port'
@@ -122,19 +140,30 @@ module Kt
       elsif @config.has_key? 'ab_testing_port'
         @m_ab_testing_port = @config['ab_testing_port']
       end
-
+      
       ##### the normal ab_testing_host/port #####
       if @m_ab_testing_host.nil? and @m_ab_testing_port.nil?
-        if app_config_map.has_key? 'use_ab' or @config.has_key? 'use_ab'
+        if (app_config_map.has_key? 'use_ab' and app_config_map['use_ab'] == true) or (@config.has_key? 'use_ab'  and @config['use_ab'] == true)
           @m_ab_testing_host = 'http://www.kontagent.com'
           @m_ab_testing_port = 80
+          @use_ab = true
         end
       end
     end
 
     public
+    # assumption : st1_str is set to the campaign_name
     def format_kt_st1(st1_str)
-      return "aB_"+st1_str
+      handle_index = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_campaign_handle_index(st1_str)
+      if !handle_index.nil?
+        if handle_index > 0
+          return "aB_"+ st1_str + handle_index.to_s
+        else
+          return "aB_"+st1_str
+        end
+      else
+        return  "aB_"
+      end
     end
 
     def format_kt_st2(st2_str)
@@ -148,11 +177,13 @@ module Kt
     def init(custom_conf = nil)
       init_from_conf(custom_conf) # to allow use of dynamic configs that aren't in the YML
       @m_comm = Kt::KtComm.instance(@m_kt_host, @m_kt_host_port)
-      @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
-                                                     @m_ab_testing_host, 
-                                                     @m_ab_testing_port) #TODO: get rid of the hardcoding stuff
+      if @use_ab
+        @m_ab_testing_mgr = Kt::AB_Testing_Manager.new(@m_kt_api_key, @m_kt_secret_key,
+                                                       @m_ab_testing_host, 
+                                                       @m_ab_testing_port) #TODO: get rid of the hardcoding stuff
+      end
     end
-
+      
     def append_kt_query_str(original_url, query_str)
       if original_url =~ /\?/
         return original_url + "&" + query_str
@@ -160,7 +191,7 @@ module Kt
         if query_str == nil || query_str == ""
           return original_url
         else
-          return original_url + "?" + query_str rescue ""
+          return original_url + "?" + query_str
         end
       end
     end
@@ -339,42 +370,39 @@ module Kt
         arg_hash['g'] = user.sex[0,1]
       end
       
-      # debugging
-      RAILS_DEFAULT_LOGGER.warn "kt demographics - birthday: #{user.birthday.inspect} => #{arg_hash['b']}" if arg_hash['b'].length < 4
-      
-#       if !user.current_location.city.blank? &&user.current_location.city != ''
-#         arg_hash['ly'] = user.current_location.city
-#       end
-#       if !user.current_location.state.blank? && user.current_location.state != ''
-#         arg_hash['ls'] = user.current_location.state
-#       end
-#       if !user.current_location.country.blank? && user.current_location.country != ''
-#         arg_hash['lc'] = user.current_location.country
-#       end
-#       if !user.current_location.zip.blank? && user.current_location.zip != ''
-#         arg_hash['lp'] = user.current_location.zip
-#       end
+      #       if !user.current_location.city.blank? &&user.current_location.city != ''
+      #         arg_hash['ly'] = user.current_location.city
+      #       end
+      #       if !user.current_location.state.blank? && user.current_location.state != ''
+      #         arg_hash['ls'] = user.current_location.state
+      #       end
+      #       if !user.current_location.country.blank? && user.current_location.country != ''
+      #         arg_hash['lc'] = user.current_location.country
+      #       end
+      #       if !user.current_location.zip.blank? && user.current_location.zip != ''
+      #         arg_hash['lp'] = user.current_location.zip
+      #       end
       
 
-#       if !user.hometown_location.city.blank? &&user.hometown_location.city != ''
-#         arg_hash['ly'] = user.hometown_location.city
-#       end
-#       if !user.hometown_location.state.blank? && user.hometown_location.state != ''
-#         arg_hash['ls'] = user.hometown_location.state
-#       end
-#       if !user.hometown_location.country.blank? && user.hometown_location.country != ''
-#         arg_hash['lc'] = user.hometown_location.country
-#       end
-#       if !user.hometown_location.zip.blank? && user.hometown_location.zip != ''
-#         arg_hash['lp'] = user.hometown_location.zip
-#       end
+      #       if !user.hometown_location.city.blank? &&user.hometown_location.city != ''
+      #         arg_hash['ly'] = user.hometown_location.city
+      #       end
+      #       if !user.hometown_location.state.blank? && user.hometown_location.state != ''
+      #         arg_hash['ls'] = user.hometown_location.state
+      #       end
+      #       if !user.hometown_location.country.blank? && user.hometown_location.country != ''
+      #         arg_hash['lc'] = user.hometown_location.country
+      #       end
+      #       if !user.hometown_location.zip.blank? && user.hometown_location.zip != ''
+      #         arg_hash['lp'] = user.hometown_location.zip
+      #       end
       
       arg_hash['f'] = user.friends.size.to_s
       
       kt_outbound_msg('cpu', arg_hash)
       return true
     end
-
+    
     def send_user_data(user)
       #sex', 'birthday', 'current_location', 'hometown_location
       if @m_mode == :async
@@ -386,6 +414,7 @@ module Kt
       else
         send_user_data_impl(user)
       end
+      
     end
 
     def save_app_removed(uid)
@@ -393,25 +422,38 @@ module Kt
       kt_outbound_msg('apr', arg_hash)
     end
     
-    def save_app_added(request_params)
-      has_direction = false
-      if request_params[:d] != nil
-        has_direction = true
-      end
+    
+    def save_app_added(request_params, cookies)
+#       has_direction = false
+#       if request_params[:d] != nil
+#         has_direction = true
+#       end
       
       arg_hash = {}
       
       arg_hash['s'] = get_fb_param(request_params, 'user')
       
-      if has_direction == true and request_params[:d] == @@S_directed_val
-        arg_hash['u'] = request_params[:ut]
+      if not cookies[gen_ut_cookie_key()].blank?
+        arg_hash['u'] = cookies[gen_ut_cookie_key()]
+        cookies.delete gen_ut_cookie_key()
+        kt_outbound_msg('apa', arg_hash)        
+      elsif not cookies[gen_sut_cookie_key()].blank?
+        arg_hash['su'] = cookies[gen_sut_cookie_key()]
+        cookies.delete gen_sut_cookie_key()
         kt_outbound_msg('apa', arg_hash)
-      elsif has_direction == true and request_params[:d] == @@S_undirected_val
-        arg_hash['su'] = request_params[:sut]
-        kt_outbound_msg('apa', arg_hash)
-      else # no viral
+      else
         kt_outbound_msg('apa', arg_hash)
       end
+
+#       if has_direction == true and request_params[:d] == @@S_directed_val
+#         arg_hash['u'] = request_params[:ut]
+#         kt_outbound_msg('apa', arg_hash)
+#       elsif has_direction == true and request_params[:d] == @@S_undirected_val
+#         arg_hash['su'] = request_params[:sut]
+#         kt_outbound_msg('apa', arg_hash)
+#       else # no viral
+#         kt_outbound_msg('apa', arg_hash)
+#       end
     end
     
     def save_invite_send(request_params)
@@ -428,7 +470,7 @@ module Kt
       kt_outbound_msg('ins', arg_hash)
     end
 
-    def save_invite_click(request_params)
+    def save_invite_click(request_params, cookies)
       arg_hash = {}
       arg_hash['i'] = get_fb_param(request_params, 'added')
       arg_hash['u'] = request_params[:kt_ut]
@@ -437,23 +479,28 @@ module Kt
       arg_hash['t']   = request_params[:kt_t]   if !request_params['kt_t'].nil?
       arg_hash['st1'] = request_params[:kt_st1] if !request_params['kt_st1'].nil?
       arg_hash['st2'] = request_params[:kt_st2] if !request_params['kt_st2'].nil?
-      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?      
+      arg_hash['st3'] = request_params[:kt_st3] if !request_params['kt_st3'].nil?
+      
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
       kt_outbound_msg('inr', arg_hash)
     end
 
-    def save_notification_click(request_params)
+
+    def save_notification_click(request_params, cookies)
       msg_type = 'ntr'
       arg_hash = construct_arg_hash_for_click_event_helper(msg_type, request_params)
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
       kt_outbound_msg(msg_type, arg_hash)
     end
     
-    def save_notification_email_click(request_params)
+    def save_notification_email_click(request_params, cookies)
       msg_type = 'nei'
       arg_hash = construct_arg_hash_for_click_event_helper(msg_type, request_params)
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])      
       kt_outbound_msg(msg_type, arg_hash)
     end
     
-    def save_undirected_comm_click(request_params)
+    def save_undirected_comm_click(request_params, cookies)
       msg_type = 'ucc'
       arg_hash = {}
       arg_hash['t'] = request_params[:kt_t] unless request_params[:kt_t] == nil
@@ -465,6 +512,7 @@ module Kt
       short_tag = gen_short_uuid
       arg_hash['su'] = short_tag
       arg_hash['i'] = get_fb_param(request_params, 'added')
+      store_sut_key_in_cookie(cookies, short_tag)
       kt_outbound_msg(msg_type, arg_hash)
       return short_tag
     end
@@ -499,10 +547,12 @@ module Kt
     
     # It's more secure to have 32 characters
     def gen_long_uuid()
-      CGI::Session.generate_unique_id('kontagent')
-    rescue
-      # Rails 2.3 fix
-      ActiveSupport::SecureRandom.hex(16)
+      begin
+        CGI::Session.generate_unique_id('kontagent')
+      rescue
+        # Rails 2.3 fix
+        ActiveSupport::SecureRandom.hex(16)
+      end
     end
     
     private

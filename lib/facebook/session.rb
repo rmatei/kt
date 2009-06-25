@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 require 'kt/kt_analytics'
 require 'ruby-debug'
 
@@ -38,7 +38,6 @@ module Facebooker
         else
           arg_hash['st1'] = st1
           arg_hash['st2'] = st2
-          arg_hash['st3'] = st3 rescue nil
         end
         
         Kt::KtAnalytics.instance.kt_outbound_msg('nts', arg_hash)

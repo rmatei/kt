@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 require 'kt/kt_analytics'
 require 'facebooker'
 require 'ruby-debug'
@@ -10,7 +10,7 @@ module Kt
       def self.included(controller)
         controller.extend(ClassMethods)
         controller.before_filter(:store_user_id)
-        #controller.before_filter(:capture_user_data)
+        # controller.before_filter(:capture_user_data)
         controller.before_filter(:handle_kontagent, :except=>[:post_remove, :handle_iframe])      
         controller.before_filter(:verify_uninstall_signature,  :only=>[:post_remove])
       end
@@ -64,16 +64,15 @@ module Kt
         return true
       end
 
+
       def capture_user_data
         begin
-          #unless App.current.theme.template.code == "snowball"
-            user = session[:facebook_session].user
-            key = "KT_" + Facebooker.api_key + "_" + user.id.to_s
-            if cookies[key].blank?
-              Kt::KtAnalytics.instance.send_user_data(user)
-            end
-            cookies[key] = {:value => 1.to_s , :expires => 2.weeks.from_now} # 2 weeks
-          #end
+          user = session[:facebook_session].user
+          key = "KT_" + Facebooker.api_key + "_" + user.id.to_s
+          if cookies[key].blank?
+            Kt::KtAnalytics.instance.send_user_data(user)
+          end
+          cookies[key] = {:value => 1.to_s , :expires => 2.weeks.from_now} # 2 weeks
         rescue 
           # invalid session key.
         end
@@ -90,11 +89,15 @@ module Kt
           return true
         end
 
-        # track install 
-        if params.has_key? :installed and params[:installed] == "1"
-          Kt::KtAnalytics.instance.save_app_added(params)
+        if cookies[gen_kt_install_cookie_key()].nil? or cookies[gen_kt_install_cookie_key()].blank?
+          cookies[gen_kt_install_cookie_key()] = {:value => params[:fb_sig_added], :expires => 1.minute.from_now}
+        else
+          if cookies[gen_kt_install_cookie_key()] == "0" and params.has_key? :fb_sig_added and params[:fb_sig_added] == "1" 
+            Kt::KtAnalytics.instance.save_app_added(params, cookies)
+            cookies[gen_kt_install_cookie_key()] = {:value => params[:fb_sig_added], :expires => 1.minute.from_now}
+          end
         end
-                
+        
         short_tag=nil
         if params.has_key? :kt_type
           # handle kontagent related parameters
@@ -102,22 +105,24 @@ module Kt
           when "ins" # invite sent
             Kt::KtAnalytics.instance.save_invite_send(params)
           when "in"  # invite click
-            Kt::KtAnalytics.instance.save_invite_click(params)
+            Kt::KtAnalytics.instance.save_invite_click(params, cookies)
           when "nt" # notification click
-            Kt::KtAnalytics.instance.save_notification_click(params)
+            Kt::KtAnalytics.instance.save_notification_click(params, cookies)
           when "nte" # email notification
-            Kt::KtAnalytics.instance.save_notification_email_click(params)
+            Kt::KtAnalytics.instance.save_notification_email_click(params, cookies)
           when "fdp"
-            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params)
+            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
           else
-            
           end
 
-          # forward to the url without the kt_* params
-          f_url =  get_stripped_kt_args_url(short_tag)
-          #puts "f_url \n\t #{f_url}" #xxx
-          redirect_to f_url
-          
+          if params[:kt_type] != "ins"
+            # forward to the url without the kt_* params
+            f_url =  get_stripped_kt_args_url(short_tag)
+            #puts "f_url \n\t #{f_url}" #xxx
+            redirect_to f_url
+          else
+            return true
+          end
         else
           return true
         end
@@ -126,6 +131,9 @@ module Kt
 
       
       private
+      def gen_kt_install_cookie_key()
+        return "KT_"+Facebooker.api_key+"_installed"
+      end
 
       def get_stripped_kt_args_url (short_tag = nil)
         get_params = request.parameters
@@ -175,7 +183,7 @@ module Kt
 # 	puts "param_hash \n\t #{param_hash.to_query}"
 # 	puts "return_url \n\t#{Kt::KtAnalytics.instance.append_kt_query_str(r_url, param_hash.to_query)}"
         
-	      r_url = Kt::KtAnalytics.instance.append_kt_query_str("/"+Kt::KtAnalytics.instance.m_canvas_name+r_url, 
+	r_url = Kt::KtAnalytics.instance.append_kt_query_str("/"+Kt::KtAnalytics.instance.m_canvas_name+r_url, 
 							     param_hash.to_query)
         #puts "final_url \n\t#{r_url}"
 	

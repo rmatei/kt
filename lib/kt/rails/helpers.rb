@@ -1,7 +1,8 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 
 require 'kt/kt_analytics'
 require 'cgi'
+require 'ruby-debug'
 
 module Kt
   module Rails
@@ -14,6 +15,19 @@ module Kt
       def kt_get_msg_text(campaign)
         msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign)
         return msg_text
+      end
+      
+      def kt_get_msg_buttons(campaign, index)
+        msg_id, msg_buttons = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info_button(campaign)
+        if msg_id.nil? 
+          return ""
+        end
+
+        if msg_buttons[index].nil?
+          return ""
+        else
+          msg_buttons[index]
+        end
       end
 
       def kt_get_invite_post_link_vo(invite_post_link, campaign)
@@ -30,9 +44,13 @@ module Kt
                                                                  uid, 
                                                                  session['invite_uuid'],
                                                                  campaign)
-          session['invite_uuid'] = nil
+#          session['invite_uuid'] = nil
         end
         return url
+      end
+
+      def kt_clear_invite_tag()
+        session['invite_uuid'] = nil
       end
 
       def kt_get_invite_content_link_vo(invite_content_link, campaign)
@@ -49,7 +67,7 @@ module Kt
                                                                     uid,
                                                                     session['invite_uuid'],
                                                                     campaign)
-          session['invite_uuid'] = nil
+          #session['invite_uuid'] = nil
         end
         return url
       end
@@ -68,7 +86,7 @@ module Kt
                                                               uid,
                                                               session['invite_uuid'], 
                                                               template_id)
-          session['invite_uuid'] = nil
+          #session['invite_uuid'] = nil
         end
         return url
       end
@@ -89,7 +107,7 @@ module Kt
                                                                  session['invite_uuid'],
                                                                  template_id,
                                                                  subtype1,subtype2)
-          session['invite_uuid'] = nil
+          #session['invite_uuid'] = nil
         end
         return url
       end

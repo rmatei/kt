@@ -1,4 +1,4 @@
-# Kontagent facebooker version 0.2.0
+# Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 #require 'socket'
 require 'net/http'
 require 'timeout'
@@ -87,7 +87,7 @@ module Kt
           socket.connect_nonblock(sockaddr)
         rescue Errno::EISCONN
           connected = false
-          #puts "Errno::EISCONN!!"
+          puts "Errno::EISCONN!!"
         end
       end
       #}
