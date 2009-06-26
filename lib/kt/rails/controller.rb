@@ -132,7 +132,7 @@ module Kt
       
       private
       def gen_kt_install_cookie_key()
-        return "KT_"+Facebooker.api_key+"_installed"
+        return "KT_#{Facebooker.api_key}_installed"
       end
 
       def get_stripped_kt_args_url (short_tag = nil)
