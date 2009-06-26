@@ -36,7 +36,7 @@ module ::ActionController
       
       if subclass.to_s == "ApplicationController"
         subclass.class_eval do
-          subclass.send(:include,Kt::Rails::Controller)
+          # subclass.send(:include,Kt::Rails::Controller)
         end
       end
       
