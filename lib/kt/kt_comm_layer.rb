@@ -120,6 +120,8 @@ module Kt
         sig += key+"="+arg_assoc_hash[key].to_s
       end
       
+      sig += secret_key
+
       arg_assoc_hash['an_sig'] = Digest::MD5.hexdigest(sig)
       
       query = arg_assoc_hash.to_query
