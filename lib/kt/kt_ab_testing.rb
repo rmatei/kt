@@ -50,35 +50,53 @@ module Kt
         json_obj = JSON.parse(res.body)
 
         if json_obj["changed"] == true
-          msg_lst = json_obj["messages"]
-          msg_weight_array = []
-          curr_idx = 0
-          
-          # process message list
-          msg_lst.each do |m|
-            w = m[1]
-            w.times { msg_weight_array << curr_idx }
-            curr_idx += 1
+          if !json_obj["page_and_messages"].nil?
+            # process message and page together for feed related campaigns
+            page_msg_lst = json_obj["page_and_messages"]
+            weight_array = []
+            curr_idx = 0
+            
+            page_msg_lst.each do |pm|
+              w = pm[1]
+              w.times { weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            store_dict = {}
+            store_dict['json'] = json_obj
+            store_dict['weight'] = weight_array
+          else
+            # process message list
+            msg_lst = json_obj["messages"]
+            msg_weight_array = []
+            curr_idx = 0
+
+            msg_lst.each do |m|
+              w = m[1]
+              w.times { msg_weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            # process page list
+            page_lst = json_obj['pages']
+            page_weight_array = []
+            curr_idx = 0
+            page_lst.each do |p|
+              w = p[1]
+              w.times { page_weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            store_dict = {}
+            store_dict['json'] = json_obj
+            store_dict['msg_weight'] = msg_weight_array
+            store_dict['page_weight'] = page_weight_array
           end
-          
-          # process page list
-          page_lst = json_obj['pages']
-          page_weight_array = []
-          curr_idx = 0
-          page_lst.each do |p|
-            w = p[1]
-            w.times { page_weight_array << curr_idx }
-            curr_idx += 1
-          end
-          
-          store_dict = {}
-          store_dict['json'] = json_obj
-          store_dict['msg_weight'] = msg_weight_array
-          store_dict['page_weight'] = page_weight_array
           
           r = store_dict
           @m_memcached_server.set( gen_memcache_key(campaign), Marshal.dump(r), 0)
           @m_memcached_server.set( gen_memcache_fake_key(campaign), 1, 300 )
+          
         else
           # no change
           @m_memcached_server.set( gen_memcache_fake_key(campaign), 1, 300 )
@@ -158,17 +176,60 @@ module Kt
     end
 
     public
+    def get_ab_testing_page_msg_tuple(campaign)
+      dict = get_ab_helper(campaign)
+      if dict.nil?
+        return nil
+      else
+        json_obj = dict['json']
+        page_msg_lst = json_obj['page_and_messages']
+        weight_array = dict['weight']
+        index = weight_array[rand(weight_array.size)]
+        return page_msg_lst[index]
+      end
+    end
+
+    public
+    def are_page_message_coupled(campaign)
+      dict = get_ab_helper(campaign)
+      if dict.nil?
+        return nil
+      else
+        json_obj = dict['json']
+        return !json_obj['page_and_messages'].nil?
+      end
+    end
+    
     def cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
       @m_selected_msg_page_pair_dict[campaign] = {'page'=>page_info, 'msg'=>msg_info}
     end
 
+    def cache_ab_testing_msg_page_tuple(campaign, page_msg_info)
+      @m_selected_msg_page_pair_dict[campaign] = {'page_msg' => page_msg_info}
+    end
+
     public 
+    def get_selected_page_msg_info(campaign)
+      @m_selected_msg_page_pair_dict[campaign]['page_msg']
+    end
+
     def get_selected_msg_info(campaign)
-      msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
-      if msg_info.nil?
-        return nil
+      if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
+        # invite, notification
+        msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
+        if msg_info.nil?
+          return nil
+        else
+          return msg_info[0], msg_info[2]
+        end
       else
-        return msg_info[0], msg_info[2]
+        # feed related calls
+        page_msg_info = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+        if page_msg_info.nil?
+          return nil
+        else
+          return page_msg_info[0], page_msg_info[3]
+        end
       end
     end
 
@@ -182,11 +243,22 @@ module Kt
     end
 
     def get_selected_page_info(campaign)
-      page_info = @m_selected_msg_page_pair_dict[campaign]['page']
-      if page_info.nil?
-        return nil
+      if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
+        # invite, notification
+        page_info = @m_selected_msg_page_pair_dict[campaign]['page']
+        if page_info.nil?
+          return nil
+        else
+          return page_info[0], page_info[2]
+        end
       else
-        return page_info[0], page_info[2]
+        # feed related calls
+        page_msg_info = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+        if page_msg_info.nil?
+          return nil
+        else
+          return page_msg_info[0], page_msg_info[2]
+        end
       end
     end
 

@@ -548,6 +548,34 @@ module Kt
       end
     end
     
+    # uid: can simply be one number or an array of uids
+    def increment_goal_count(uid, goal_id, inc)
+      msg_type = 'gci'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      arg_hash['gc'+goal_id] = inc
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    # goal_counts_assoc_array :  { goal_id0 => inc0, goal_id1 => inc1, .... }
+    def increment_multiple_goal_counts(uid, goal_counts_assoc_array)
+      msg_type = 'gci'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      goal_counts_assoc_array.each_pair do | k, v|
+        arg_hash['gc'+k] = v
+      end
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def increment_monetization(uid, money_value)
+      msg_type = 'mtu'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      arg_hash['v'] = money_value
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
     private
     def construct_arg_hash_for_click_event_helper(msg_type, request_params)
       arg_hash = {}

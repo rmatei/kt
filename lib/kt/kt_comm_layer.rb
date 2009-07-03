@@ -86,6 +86,7 @@ module Kt
         begin
           socket.connect_nonblock(sockaddr)
         rescue Errno::EISCONN
+          # socket is already connected
           #connected = false
           #puts "Errno::EISCONN!!"
         rescue

@@ -16,9 +16,14 @@ module Kt
       end
       
       def set_ab_testing_page(campaign)
-        page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
-        msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
-        Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
+        if Kt::KtAnalytics.instance.m_ab_testing_mgr.are_page_message_coupled(campaign)
+          page_msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page_msg_tuple(campaign)
+          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_page_tuple(campaign, page_msg_info)
+        else
+          page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
+          msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
+          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
+        end
       end
       
       # DEPRECATED : we don't use iframes to track page views anymore.
