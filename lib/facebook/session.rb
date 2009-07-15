@@ -97,15 +97,17 @@ module Facebooker
         st3 = page_id
       end
 
+      uuid = 0
+
       if(data != nil)
         data.each_pair do |key,value |
           if key == :image
             if !campaign.nil?
-              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_vo(value[:href], :fdp,
-                                                                        bundle_id, st1, st2, st3, campaign)
+              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_vo(value[:href], :feedpub,
+                                                                        nil, st1, st2, st3, campaign)
             else
-              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link(value[:href], :fdp,
-                                                                     bundle_id, st1, st2)
+              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link(value[:href], :feedpub,
+                                                                     nil, st1, st2)
             end
             value[:href] = fbml
             data[key] = value # do we even need this line?
@@ -116,9 +118,9 @@ module Facebooker
           elsif key == :video
           else
             if !campaign.nil?
-              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_no_href_vo(value, :fdp, bundle_id, st1, st2, st3)
+              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_no_href_vo(value, :feedpub, nil, st1, st2, st3)
             else
-              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_no_href(value, :fdp, bundle_id, st1, st2)
+              uuid, fbml = Kt::KtAnalytics.instance.gen_kt_comm_link_no_href(value, :feedpub, nil, st1, st2)
             end
             data[key] =  fbml
           end
@@ -131,12 +133,15 @@ module Facebooker
       
       if !r.blank?
         arg_hash = {
-          'pt' => 4,
           's' => @user.id.to_s,
-          't' => bundle_id
+          'tu' => 'feedpub'
         }
+        arg_hash['u'] = uuid if !uuid.nil?
+        arg_hash['tg'] = target_ids if !target_ids.nil?
+        arg_hash['st1'] = st1 if !st1.nil?
+        arg_hash['st2'] = st2 if !st2.nil?
         
-        Kt::KtAnalytics.instance.kt_outbound_msg('fdp', arg_hash) 
+        Kt::KtAnalytics.instance.kt_outbound_msg('pst', arg_hash) 
       end
     
     end

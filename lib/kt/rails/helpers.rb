@@ -119,6 +119,37 @@ module Kt
 	return track_code_str
       end
       
+#       def kt_track_page_view_pm()
+#         uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
+#         url_str = Kt::KtAnalytics.instance.get_page_tracking_url(uid)
+        
+#         kt_api_url = "/api"
+#         version = "v1"
+#         kt_api_key = "KT_API_KEY" 
+#         kt_secret_key = "KT_SECRET_KEY"
+#         api_func = 'pgr'
+        
+#         arg_hash = {}
+#         arg_hash['ts'] = Time.now.to_s
+#         arg_hash['s'] = uid
+        
+#         keys = arg_hash.keys.sort
+#         sig = ''
+#         keys.each do |key| 
+#           sig += key+"="+arg_hash[key].to_s
+#         end  
+        
+#         sig += kt_secret_key
+        
+#         arg_hash['an_sig'] = Digest::MD5.hexdigest(sig)
+#         query = arg_hash.to_query
+        
+#         url_str = kt_api_url + "/" + version + "/" + kt_api_key + "/" + api_func + "/?" + query
+
+#         track_code_str = "<img src='http://api.global.kontagent.net#{url_str}' width='0px' height='0px' />"
+#         return track_code_str
+#       end # for product madness only
+      
     end
       
   end

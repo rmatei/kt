@@ -115,8 +115,16 @@ module Kt
             Kt::KtAnalytics.instance.save_notification_click(params, cookies)
           when "nte" # email notification
             Kt::KtAnalytics.instance.save_notification_email_click(params, cookies)
-          when "fdp"
+          when "ad"
             short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
+          when "partner"
+            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
+          when "feedstory"
+            Kt::KtAnalytics.instance.save_feedstory_click(params, cookies)
+          when "multifeedstory"
+            Kt::KtAnalytics.instance.save_multifeedstory_click(params, cookies)
+          when "feedpub"
+            Kt::KtAnalytics.instance.save_feedpub_click(params, cookies)
           else
           end
 
