@@ -25,6 +25,12 @@ module Kt
           Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
         end
       end
+
+
+      def ajax_kt_feedstory_send
+        Kt::KtAnalytics.instance.kt_feedstory_send(params[:uid], params[:uuid], params[:st1], params[:st2])
+        render :nothing => true
+      end
       
       # DEPRECATED : we don't use iframes to track page views anymore.
       def handle_iframe
@@ -35,7 +41,7 @@ module Kt
       def post_remove
         puts "calling post_remove..."
         Kt::KtAnalytics.instance.save_app_removed(params[:fb_sig_user])
-        render :nothing
+        render :nothing => true
       end  
       
       protected

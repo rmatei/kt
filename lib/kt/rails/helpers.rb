@@ -119,6 +119,10 @@ module Kt
 	return track_code_str
       end
       
+      def kt_get_callback_url()
+        return Kt::KtAnalytics.instance.m_call_back_host + Kt::KtAnalytics.instance.m_call_back_req_uri
+      end
+      
 #       def kt_track_page_view_pm()
 #         uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
 #         url_str = Kt::KtAnalytics.instance.get_page_tracking_url(uid)
