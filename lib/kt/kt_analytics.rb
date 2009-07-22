@@ -54,6 +54,8 @@ module Kt
         r = request_params['fb_sig_'+param_name]
       elsif request_params.has_key?(Facebooker.api_key+"_"+param_name)
         r = request_params[Facebooker.api_key+"_"+param_name]
+      elsif request_params.has_key?('fb_sig_canvas_user')
+        r = request_params['fb_sig_canvas_user']
       end
       return r
     end
@@ -71,12 +73,27 @@ module Kt
       return @m_kt_api_key + "_sut"
     end
 
+    def gen_ru_cookie_key()
+      return @m_kt_api_key + "_ru"
+    end
+
     def store_ut_key_in_cookie(cookies, ut)
       cookies[gen_ut_cookie_key()] = {:value => ut, :expires => 10.minutes.from_now } 
     end
     
     def store_sut_key_in_cookie(cookies, sut)
       cookies[gen_sut_cookie_key()] = {:value => sut, :expired => 10.minutes.from_now }
+    end
+
+    # used for profileinfo and profilefbml only
+    def store_ru_key_in_cookie(cookies, uid)
+      uid_length = uid.to_s.length()
+      if uid_length < 16
+        tag = ("0" * (16 - uid_length)) + uid.to_s
+      else
+        tag = uid.to_s
+      end
+      cookies[gen_ru_cookie_key()] = {:value => tag, :expired => 10.minutes.from_now }
     end
 
     def init_from_conf(custom_conf = nil)
@@ -273,6 +290,59 @@ module Kt
       return r_url
     end
 
+    def gen_profile_fbml_link(fbml_txt, st1, st2, owner_id)
+      id, query_str = gen_kt_comm_query_str(:profilebox, nil, st1, st2, nil, nil, owner_id)
+      fbml_txt = fbml_txt.gsub(@@URL_REGEX_STR){|match|
+        if $1.nil?
+          append_kt_query_str($2, query_str)
+        else
+          $1 + append_kt_query_str($2, query_str)
+        end
+      }
+      return fbml_txt
+    end
+
+    def kt_profile_setFBML_send(uid, st1, st2)
+      arg_hash = {
+        'tu' => 'profilebox',
+        's' => uid,
+      }
+
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+
+      kt_outbound_msg('pst', arg_hash)
+    end
+    
+    def gen_profile_info_link(info_fields, owner_id, st1, st2)
+      id, query_str = gen_kt_comm_query_str(:profileinfo, nil, st1, st2,nil,nil, owner_id)
+
+      i=0
+      j=0
+      info_fields.each do | info_item |
+        item_array = info_item['items']
+        item_array.each do | item |
+          link = item['link']
+          info_fields[i]['items'][j]['link'] = append_kt_query_str(link, query_str)
+          j += 1
+        end
+        i+=1
+      end
+      return info_fields
+    end
+
+    def kt_profile_setInfo_send(uid, st1, st2)
+      arg_hash = {
+        'tu' => 'profileinfo',
+        's' => uid,
+      }
+      
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+      
+      kt_outbound_msg('pst', arg_hash)
+    end
+    
     def gen_feedstory_link(link, uuid, st1, st2)
       id, query_str = gen_kt_comm_query_str(:feedstory, nil, st1, st2, nil, uuid)
       r_url = append_kt_query_str(link, query_str)
@@ -475,15 +545,16 @@ module Kt
       if not cookies[gen_ut_cookie_key()].blank?
         arg_hash['u'] = cookies[gen_ut_cookie_key()]
         cookies.delete gen_ut_cookie_key()
-        kt_outbound_msg('apa', arg_hash)        
       elsif not cookies[gen_sut_cookie_key()].blank?
         arg_hash['su'] = cookies[gen_sut_cookie_key()]
         cookies.delete gen_sut_cookie_key()
-        kt_outbound_msg('apa', arg_hash)
-      else
-        kt_outbound_msg('apa', arg_hash)
+      elsif not cookies[gen_ru_cookie_key()].blank?
+        arg_hash['ru'] = cookies[gen_ru_cookie_key()]
+        cookies.delete gen_ru_cookie_key()
       end
-
+      
+      kt_outbound_msg('apa', arg_hash)
+      
 #       if has_direction == true and request_params[:d] == @@S_directed_val
 #         arg_hash['u'] = request_params[:ut]
 #         kt_outbound_msg('apa', arg_hash)
@@ -593,6 +664,34 @@ module Kt
       arg_hash['u'] = request_params[:kt_ut]
       store_ut_key_in_cookie(cookies, request_params[:kt_ut])
       arg_hash['tu'] = 'feedpub'
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def save_profilebox_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil      
+      arg_hash['tu'] = 'profilebox'
+      arg_hash['s'] = request_params[:kt_owner_uid] 
+      store_ru_key_in_cookie(cookies, request_params[:kt_owner_uid])
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def save_profileinfo_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil      
+      arg_hash['tu'] = 'profileinfo'
+      arg_hash['s'] = request_params[:kt_owner_uid] 
+      store_ru_key_in_cookie(cookies, request_params[:kt_owner_uid])
       arg_hash['r'] = get_fb_param(request_params, 'user')
       arg_hash['i'] = get_fb_param(request_params, 'added')
       kt_outbound_msg(msg_type, arg_hash)
@@ -721,10 +820,7 @@ module Kt
           param_array[:kt_ut] = uuid_arg
         end
       elsif dir_val == @@S_profile_val
-        if uid_arg.nil?
-          uid = get_fb_param(request_params, 'user')
-        end
-        param_array[:kt_owner_uid] = uid
+        param_array[:kt_owner_uid] = uid_arg
       end
       
       param_array[:kt_t] = template_id.to_s if !template_id.nil?

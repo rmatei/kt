@@ -3,17 +3,15 @@
 puts "loading kt..."
 
 require 'facebook/session'
-
-
 require 'kt/rails/helpers'
-
 require 'facebooker/rails/publisher'
 require 'facebook/rails/publisher'
-#require 'facebooker/rails/controller'
 require 'facebook/rails/controller'
 require 'kt/rails/controller'
+require 'facebook/models/user'
 
 config = YAML::load_file("#{RAILS_ROOT}/config/kontagent.yml")
+
 
 if config['mode'] == 'async'
   require 'starling'

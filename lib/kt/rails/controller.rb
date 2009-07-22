@@ -131,6 +131,10 @@ module Kt
             Kt::KtAnalytics.instance.save_multifeedstory_click(params, cookies)
           when "feedpub"
             Kt::KtAnalytics.instance.save_feedpub_click(params, cookies)
+          when "profilebox"
+            Kt::KtAnalytics.instance.save_profilebox_click(params, cookies)
+          when "profileinfo"
+            Kt::KtAnalytics.instance.save_profileinfo_click(params, cookies)
           else
           end
 
