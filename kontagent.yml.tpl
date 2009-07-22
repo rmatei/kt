@@ -138,3 +138,5 @@ kt_host_test: api.test.kontagent.net
 #              to have ab testing fully functional. 
 # 
 use_ab: false
+
+kt_disabled: false

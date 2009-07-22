@@ -113,6 +113,10 @@ module Kt
       end
 
       def kt_track_page_view()
+        if Kt::KtAnalytics.instance.m_is_disabled
+          return ""
+        end
+
 	uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
         url_str = Kt::KtAnalytics.instance.get_page_tracking_url(uid)
 	track_code_str = "<img src='http://#{Kt::KtAnalytics.instance.m_kt_host_url}#{url_str}' width='0px' height='0px' />"

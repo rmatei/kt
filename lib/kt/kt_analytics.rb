@@ -22,7 +22,7 @@ module Kt
     @@S_profile_val = 'p'
     @@instance_obj = nil
     
-    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url, :m_ab_testing_mgr
+    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url, :m_ab_testing_mgr, :m_is_disabled
     
     def self.instance()
       if @@instance_obj == nil
@@ -87,7 +87,6 @@ module Kt
 
     # used for profileinfo and profilefbml only
     def store_ru_key_in_cookie(cookies, uid)
-      uid_length = uid.to_s.length()
       tag = uid.to_s
       cookies[gen_ru_cookie_key()] = {:value => tag, :expired => 10.minutes.from_now }
     end
@@ -101,6 +100,12 @@ module Kt
         app_config_map = @config[$CURR_API_KEY]
       else
         app_config_map = @config
+      end
+      
+      if app_config_map['kt_disabled'].blank?
+        @m_is_disabled = false
+      else
+        @m_is_disabled = app_config_map['kt_disabled'] 
       end
       
       if app_config_map['use_test_server'] == true
@@ -694,6 +699,10 @@ module Kt
     end
 
     def kt_outbound_msg(type, arg_hash)
+      if @m_is_disabled == true
+        return #short circuit
+      end
+
       if @m_mode == :async      
         #timeout(@m_timeout) do
         data_hash = {

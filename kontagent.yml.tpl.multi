@@ -1,4 +1,6 @@
 <FACEBOOK_API_KEY>:
+    kt_disabled: false	
+
     # Parameter: kt_api_key
     #
     # Description: App-specific Kontagent API key found in the "Account" section
