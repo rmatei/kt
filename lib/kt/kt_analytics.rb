@@ -88,11 +88,7 @@ module Kt
     # used for profileinfo and profilefbml only
     def store_ru_key_in_cookie(cookies, uid)
       uid_length = uid.to_s.length()
-      if uid_length < 16
-        tag = ("0" * (16 - uid_length)) + uid.to_s
-      else
-        tag = uid.to_s
-      end
+      tag = uid.to_s
       cookies[gen_ru_cookie_key()] = {:value => tag, :expired => 10.minutes.from_now }
     end
 
