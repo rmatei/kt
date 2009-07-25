@@ -30,6 +30,11 @@ module Kt
         end
       end
 
+      def kt_get_msg_title(campaign)
+        msg_id, msg_title = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info_title(campaign)
+        return msg_title
+      end
+
       def kt_get_invite_post_link_vo(invite_post_link, campaign)
         url = nil
         uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')

@@ -242,6 +242,15 @@ module Kt
       end
     end
 
+    def get_selected_msg_info_title(campaign)
+      msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
+      if msg_info.nil?
+        return nil
+      else
+        return msg_info[0], msg_info[4]
+      end
+    end
+
     def get_selected_page_info(campaign)
       if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
         # invite, notification
