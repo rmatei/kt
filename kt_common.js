@@ -263,9 +263,15 @@ function http_build_query( formdata, numeric_prefix, arg_separator ) {
 function gen_feedstory_link(link, uuid, st1, st2)
 {
   var param_array = {'kt_type' : 'feedstory',
-		     'kt_st1' : st1,
-		     'kt_st2' : st2,
 		     'kt_ut'  : String(uuid) };
+  if( st1 != undefined)
+  {
+    param_array['kt_st1'] = st1;
+  }
+  if( st2 != undefined)
+  {
+    param_array['kt_st2'] = st2;
+  }
   var query_str = http_build_query(param_array);
 
   var mod_link = append_kt_query_str(link, query_str);
