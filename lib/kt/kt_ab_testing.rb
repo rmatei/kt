@@ -8,8 +8,9 @@ require 'ruby-debug'
 module Kt
   class AB_Testing_Manager
 
-    @@URL_PREFIX = "/abtest/campaign_info";
-
+    @@URL_PREFIX = "/abtest/campaign_info"
+    @@VO_CUSTOM_VARIABLE_REGEX_STR = /\{\{(.*?)\}\}/
+    
     public
     def initialize(kt_api_key, kt_secret_key,
                    kt_ab_backend_host, kt_ab_backend_port)
@@ -209,18 +210,18 @@ module Kt
     end
 
     public 
-    def get_selected_page_msg_info(campaign)
+    def get_selected_page_msg_info(campaign, custom_data=nil)
       @m_selected_msg_page_pair_dict[campaign]['page_msg']
     end
 
-    def get_selected_msg_info(campaign)
+    def get_selected_msg_info(campaign, custom_data=nil)
       if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
         # invite, notification
         msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
         if msg_info.nil?
           return nil
         else
-          return msg_info[0], msg_info[2]
+          return msg_info[0], replace_vo_custom_variable(msg_info[2], custom_data)
         end
       else
         # feed related calls
@@ -228,7 +229,7 @@ module Kt
         if page_msg_info.nil?
           return nil
         else
-          return page_msg_info[0], page_msg_info[3]
+          return page_msg_info[0], replace_vo_custom_variable(page_msg_info[3], custom_data)
         end
       end
     end
@@ -251,14 +252,14 @@ module Kt
       end
     end
 
-    def get_selected_page_info(campaign)
+    def get_selected_page_info(campaign, custom_data=nil)
       if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
         # invite, notification
         page_info = @m_selected_msg_page_pair_dict[campaign]['page']
         if page_info.nil?
           return nil
         else
-          return page_info[0], page_info[2]
+          return page_info[0], replace_vo_custom_variable(page_info[2], custom_data)
         end
       else
         # feed related calls
@@ -266,11 +267,27 @@ module Kt
         if page_msg_info.nil?
           return nil
         else
-          return page_msg_info[0], page_msg_info[2]
+          return page_msg_info[0], replace_vo_custom_variable(page_msg_info[2], custom_data)
         end
       end
     end
 
+    private
+    def replace_vo_custom_variable(text, data_dict)
+      return text if data_dict.nil?
+        
+      matched_variables_lst = text.scan(@@VO_CUSTOM_VARIABLE_REGEX_STR)
+      matched_variables_lst.each do |key|
+        k = key[0]
+        if data_dict[k].nil?
+          raise k + " is not defined in the data_assoc_array."
+        else
+          text = text.gsub('{{'+k+'}}' ,  data_dict[k])
+        end
+      end
+      return text
+    end
+      
     private
     def gen_memcache_fake_key(campaign)
       return "kt_"+@m_backend_api_key+"_"+campaign+"_fake"

@@ -7,13 +7,14 @@ require 'ruby-debug'
 module Kt
   module Rails
     module KontagentHelpers
-      def kt_get_page_text(campaign)
-        page_id, page_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_info(campaign)
+      # example: page_custom_data : { 'foo' => 'FOO' }
+      def kt_get_page_text(campaign, page_custom_data=nil)
+        page_id, page_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_info(campaign, page_custom_data)
         return page_text
       end
-
-      def kt_get_msg_text(campaign)
-        msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign)
+      # example: msg_custom_data : { 'foo' => 'FOO' }
+      def kt_get_msg_text(campaign, msg_custom_data=nil)
+        msg_id, msg_text = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_msg_info(campaign, msg_custom_data)
         return msg_text
       end
       
