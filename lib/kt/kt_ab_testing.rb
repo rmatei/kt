@@ -3,6 +3,7 @@ require 'memcache'
 require 'net/http'
 require 'uri'
 require 'json'
+require 'digest/md5'
 require 'ruby-debug'
 
 module Kt
@@ -29,14 +30,42 @@ module Kt
       @m_memcached_server = MemCache.new '127.0.0.1'
       @m_selected_msg_page_pair_dict = {}
     end
+    
+    private 
+    def append_sig(url_str, force)
+      arg_array = {}
+      time_stamp = Time.now.to_s
+      sig = Digest::MD5.hexdigest("AB_TEST" + time_stamp + @m_backend_secret_key)
+      
+      if force
+        arg_array['f'] = 1
+      end
+      arg_array['ts'] = time_stamp
+      arg_array['kt_sig'] = sig
+      
+      url_str = url_str+"?"+arg_array.to_query
+      return url_str
+    end
+    
+    private
+    def validate_checksum(json_obj)
+      key_lst = json_obj.keys.sort
+      sig = ""
+      key_lst.each do |k|
+        sig = sig + k + "=" + JSON.unparse(json_obj[k]).gsub(" ","") unless k == 'sig'
+      end
+      sig += @m_backend_secret_key
+      
+      if Digest::MD5.hexdigest(sig) != json_obj["sig"]
+        raise "Your inbound ab test message from kontagent fails checksum validation"
+      end
+    end
 
     private
     def fetch_ab_testing_data(campaign, force=false)
       begin
         url_str = @m_ab_backend + @@URL_PREFIX + "/" + @m_backend_api_key + "/" + campaign + "/"
-        if force == true
-          url_str += "?f=1"
-        end
+        url_str = append_sig(url_str, force)
 
         url = URI.parse(url_str)
         if url.query.nil?
@@ -51,6 +80,7 @@ module Kt
         json_obj = JSON.parse(res.body)
 
         if json_obj["changed"] == true
+          validate_checksum(json_obj)
           if !json_obj["page_and_messages"].nil?
             # process message and page together for feed related campaigns
             page_msg_lst = json_obj["page_and_messages"]
