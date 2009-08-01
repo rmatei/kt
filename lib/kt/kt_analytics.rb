@@ -350,7 +350,7 @@ module Kt
       return r_url
     end
 
-    def kt_feedstory_send(uid, uuid, st1, st2)
+    def kt_feedstory_send(uid, uuid, st1, st2, st3)
       arg_hash = {
         'tu' => 'feedstory',
         's' => uid,
@@ -359,6 +359,7 @@ module Kt
       
       arg_hash['st1'] = st1 if !st1.nil?
       arg_hash['st2'] = st2 if !st2.nil?
+      arg_hash['st3'] = st3 if !st3.nil?
 
       kt_outbound_msg('pst', arg_hash)
     end

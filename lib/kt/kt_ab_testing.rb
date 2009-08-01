@@ -152,6 +152,10 @@ module Kt
           r = fetch_ab_testing_data(campaign, true) # force it
         else
           r = fetch_ab_testing_data(campaign)
+          if r.nil?
+            #No changes on the ab test server. So, use the serialized_campaign_str
+            r = Marshal.load( serialized_campaign_str )
+          end
         end
       else
         # Likewise, the real key should have a valid json object.
@@ -235,8 +239,14 @@ module Kt
       @m_selected_msg_page_pair_dict[campaign] = {'page'=>page_info, 'msg'=>msg_info}
     end
 
-    def cache_ab_testing_msg_page_tuple(campaign, page_msg_info)
+    def cache_ab_testing_msg_page_tuple(campaign, page_msg_info, cookies)
       @m_selected_msg_page_pair_dict[campaign] = {'page_msg' => page_msg_info}
+
+      cookie_data = {
+        :data => page_msg_info,
+        :handle_index => get_ab_testing_campaign_handle_index(campaign)
+      }
+      cookies["KT_FEED_AB_TEST_INFO"+campaign] = JSON.unparse(cookie_data)
     end
 
     public 

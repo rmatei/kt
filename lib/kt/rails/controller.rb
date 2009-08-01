@@ -18,7 +18,7 @@ module Kt
       def set_ab_testing_page(campaign)
         if Kt::KtAnalytics.instance.m_ab_testing_mgr.are_page_message_coupled(campaign)
           page_msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page_msg_tuple(campaign)
-          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_page_tuple(campaign, page_msg_info)
+          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_page_tuple(campaign, page_msg_info, cookies)
         else
           page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
           msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
@@ -28,7 +28,7 @@ module Kt
 
 
       def ajax_kt_feedstory_send
-        Kt::KtAnalytics.instance.kt_feedstory_send(params[:uid], params[:uuid], params[:st1], params[:st2])
+        Kt::KtAnalytics.instance.kt_feedstory_send(params[:uid], params[:uuid], params[:st1], params[:st2], params[:st3])
         render :nothing => true
       end
       
