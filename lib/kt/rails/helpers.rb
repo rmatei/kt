@@ -132,38 +132,15 @@ module Kt
       def kt_get_callback_url()
         return Kt::KtAnalytics.instance.m_call_back_host + Kt::KtAnalytics.instance.m_call_back_req_uri
       end
-      
-#       def kt_track_page_view_pm()
-#         uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
-#         url_str = Kt::KtAnalytics.instance.get_page_tracking_url(uid)
-        
-#         kt_api_url = "/api"
-#         version = "v1"
-#         kt_api_key = "KT_API_KEY" 
-#         kt_secret_key = "KT_SECRET_KEY"
-#         api_func = 'pgr'
-        
-#         arg_hash = {}
-#         arg_hash['ts'] = Time.now.to_s
-#         arg_hash['s'] = uid
-        
-#         keys = arg_hash.keys.sort
-#         sig = ''
-#         keys.each do |key| 
-#           sig += key+"="+arg_hash[key].to_s
-#         end  
-        
-#         sig += kt_secret_key
-        
-#         arg_hash['an_sig'] = Digest::MD5.hexdigest(sig)
-#         query = arg_hash.to_query
-        
-#         url_str = kt_api_url + "/" + version + "/" + kt_api_key + "/" + api_func + "/?" + query
 
-#         track_code_str = "<img src='http://api.global.kontagent.net#{url_str}' width='0px' height='0px' />"
-#         return track_code_str
-#       end # for product madness only
-      
+      def kt_get_serialized_msg_page_tuple(campaign, pg_custom_data=nil, msg_custom_data=nil)
+        info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_selected_page_msg_info(campaign,
+                                                                                    pg_custom_data,
+                                                                                    msg_custom_data)
+        return Kt::KtAnalytics.instance.m_ab_testing_mgr.serialize_msg_page_tuple_helper(campaign, 
+                                                                                         info)
+      end
+
     end
       
   end

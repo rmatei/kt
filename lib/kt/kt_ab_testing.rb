@@ -235,6 +235,14 @@ module Kt
       end
     end
     
+    def serialize_msg_page_tuple_helper(campaign, page_msg_info)
+      data = {}
+      data['campaign'] = campaign
+      data['data'] = page_msg_info
+      data['handle_index'] = get_ab_testing_campaign_handle_index(campaign)
+      return JSON.unparse(data)
+    end
+
     def cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
       @m_selected_msg_page_pair_dict[campaign] = {'page'=>page_info, 'msg'=>msg_info}
     end
@@ -249,9 +257,11 @@ module Kt
       cookies["KT_FEED_AB_TEST_INFO"+campaign] = JSON.unparse(cookie_data)
     end
 
-    public 
-    def get_selected_page_msg_info(campaign, custom_data=nil)
-      @m_selected_msg_page_pair_dict[campaign]['page_msg']
+    def get_selected_page_msg_info(campaign, pg_custom_data=nil, msg_custom_data=nil)
+      r = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+      r[2] = replace_vo_custom_variable(r[2], pg_custom_data)
+      r[3] = replace_vo_custom_variable(r[3], msg_custom_data)
+      return r
     end
 
     def get_selected_msg_info(campaign, custom_data=nil)

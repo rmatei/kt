@@ -344,13 +344,13 @@ module Kt
       kt_outbound_msg('pst', arg_hash)
     end
     
-    def gen_feedstory_link(link, uuid, st1, st2)
-      id, query_str = gen_kt_comm_query_str(:feedstory, nil, st1, st2, nil, uuid)
+    def gen_feedstory_link(link, uuid, st1, st2, st3)
+      id, query_str = gen_kt_comm_query_str(:feedstory, nil, st1, st2, st3, uuid)
       r_url = append_kt_query_str(link, query_str)
       return r_url
     end
 
-    def kt_feedstory_send(uid, uuid, st1, st2, st3)
+    def kt_feedstory_send(uid, uuid, st1, st2, st3=nil)
       arg_hash = {
         'tu' => 'feedstory',
         's' => uid,
