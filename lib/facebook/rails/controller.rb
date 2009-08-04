@@ -30,13 +30,13 @@ module Facebooker
         Kt::KtAnalytics.instance.kt_feedstory_send(uid, uuid, st1, st2, st3)
       end
 
-      def gen_multifeedstory_link(link, uuid, st1=nil, st2=nil)
-        Kt::KtAnalytics.instance.gen_multifeedstory_link(link, uuid, st1, st2)
+      def gen_multifeedstory_link(link, uuid, st1=nil, st2=nil, st3=nil)
+        Kt::KtAnalytics.instance.gen_multifeedstory_link(link, uuid, st1, st2, st3)
       end
 
-      def kt_multifeedstory_send(uuid, st1=nil, st2=nil)
+      def kt_multifeedstory_send(uuid, st1=nil, st2=nil, st3=nil)
         uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
-        Kt::KtAnalytics.instance.kt_multifeedstory_send(uid, uuid, st1, st2)
+        Kt::KtAnalytics.instance.kt_multifeedstory_send(uid, uuid, st1, st2, st3)
       end
       
       def kt_increment_goal_count(goal_id, inc)
@@ -68,6 +68,22 @@ module Facebooker
         st2 = Kt::KtAnalytics.instance.format_kt_st2(info['data'][0])
         st3 = Kt::KtAnalytics.instance.format_kt_st3(info['data'][0])
         kt_feedstory_send(uuid, st1, st2, st3)
+      end
+
+      def gen_multifeedstory_link_vo(link, uuid, ab_test_serialized_str)
+        info = JSON.parse(ab_test_serialized_str)
+        st1 = "aB_" + info['campaign'] + "___" + info['handle_index'].to_s
+        st2 = Kt::KtAnalytics.instance.format_kt_st2(info['data'][0])
+        st3 = Kt::KtAnalytics.instance.format_kt_st3(info['data'][0])
+        return gen_multifeedstory_link(link, uuid, st1, st2, st3)
+      end
+
+      def kt_multifeedstory_send_vo(uuid, ab_test_serialized_str)
+        info = JSON.parse(ab_test_serialized_str)
+        st1 = "aB_" + info['campaign'] + "___" + info['handle_index'].to_s
+        st2 = Kt::KtAnalytics.instance.format_kt_st2(info['data'][0])
+        st3 = Kt::KtAnalytics.instance.format_kt_st3(info['data'][0])
+        kt_multifeedstory_send(uuid, st1, st2, st3)
       end
 
       alias_method_chain :application_is_not_installed_by_facebook_user, :kontagent

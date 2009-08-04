@@ -344,7 +344,7 @@ module Kt
       kt_outbound_msg('pst', arg_hash)
     end
     
-    def gen_feedstory_link(link, uuid, st1, st2, st3)
+    def gen_feedstory_link(link, uuid, st1, st2, st3=nil)
       id, query_str = gen_kt_comm_query_str(:feedstory, nil, st1, st2, st3, uuid)
       r_url = append_kt_query_str(link, query_str)
       return r_url
@@ -364,13 +364,13 @@ module Kt
       kt_outbound_msg('pst', arg_hash)
     end
 
-    def gen_multifeedstory_link(link, uuid, st1, st2)
-      id, query_str = gen_kt_comm_query_str(:multifeedstory, nil, st1, st2, nil, uuid)
+    def gen_multifeedstory_link(link, uuid, st1, st2, st3=nil)
+      id, query_str = gen_kt_comm_query_str(:multifeedstory, nil, st1, st2, st3, uuid)
       r_url = append_kt_query_str(link, query_str)
       return r_url
     end
 
-    def kt_multifeedstory_send(uid, uuid, st1, st2)
+    def kt_multifeedstory_send(uid, uuid, st1, st2, st3=nil)
       arg_hash = {
         'tu' => 'multifeedstory',
         's' => uid,
@@ -379,7 +379,8 @@ module Kt
       
       arg_hash['st1'] = st1 if !st1.nil?
       arg_hash['st2'] = st2 if !st2.nil?
-
+      arg_hash['st3'] = st3 if !st3.nil?
+      
       kt_outbound_msg('pst', arg_hash)
     end
     
