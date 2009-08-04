@@ -176,13 +176,7 @@ module Kt
     def format_kt_st1(st1_str)
       handle_index = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_campaign_handle_index(st1_str)
       if !handle_index.nil?
-        if handle_index > 0
-          return "aB_"+ st1_str + handle_index.to_s
-        else
-          return "aB_"+st1_str
-        end
-      else
-        return  "aB_"
+        return "aB_" + st1_str + "___" + handle_index.to_s
       end
     end
 
