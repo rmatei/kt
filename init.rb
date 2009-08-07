@@ -1,6 +1,6 @@
 # Kontagent facebooker version KONTAGENT_VERSION_NUMBER
 
-puts "loading kt..."
+# puts "loading kt..." - SILENCE!
 
 require 'facebook/session'
 
