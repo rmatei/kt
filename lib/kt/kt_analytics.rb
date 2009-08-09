@@ -518,26 +518,26 @@ module Kt
     end
 
     def kt_outbound_msg(type, arg_hash)
-      Timeout::timeout(1) do
-        if @m_mode == :async      
-          #timeout(@m_timeout) do
-          data_hash = {
-            :qtype => :kt_outbound,
-            :ctype => type,
-            :v => 'v1',
-            :kt_api_key => @m_kt_api_key,
-            :kt_secret_key => @m_kt_secret_key,
-            :kt_call_back_host => @m_kt_host,
-            :kt_call_back_port => @m_kt_host_port,
-            :kt_url => @m_kt_url,
-            :arg_hash => arg_hash,
-          }
-          Kt::Queue::Task.publish :record, data_hash
-          #end
-        else
-          @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
-        end
-      end
+      # Timeout::timeout(1) do
+      #   if @m_mode == :async      
+      #     #timeout(@m_timeout) do
+      #     data_hash = {
+      #       :qtype => :kt_outbound,
+      #       :ctype => type,
+      #       :v => 'v1',
+      #       :kt_api_key => @m_kt_api_key,
+      #       :kt_secret_key => @m_kt_secret_key,
+      #       :kt_call_back_host => @m_kt_host,
+      #       :kt_call_back_port => @m_kt_host_port,
+      #       :kt_url => @m_kt_url,
+      #       :arg_hash => arg_hash,
+      #     }
+      #     Kt::Queue::Task.publish :record, data_hash
+      #     #end
+      #   else
+      #     @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
+      #   end
+      # end
     rescue Timeout::Error
       RAILS_DEFAULT_LOGGER.warn "kt_outbound_msg timed out."
     end
