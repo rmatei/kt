@@ -518,7 +518,7 @@ module Kt
     end
 
     def kt_outbound_msg(type, arg_hash)
-      Timeout::timeout(2) do
+      Timeout::timeout(1) do
         if @m_mode == :async      
           #timeout(@m_timeout) do
           data_hash = {
