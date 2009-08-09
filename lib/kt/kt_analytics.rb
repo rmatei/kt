@@ -534,8 +534,12 @@ module Kt
         Kt::Queue::Task.publish :record, data_hash
         #end
       else
-        @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
+        Timeout::timeout(2) do
+          @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
+        end
       end
+    rescue Timeout::Error
+      RAILS_DEFAULT_LOGGER.warn "kt_outbound_msg timed out."
     end
     
     begin
