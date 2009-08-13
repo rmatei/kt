@@ -86,8 +86,12 @@ module Kt
         begin
           socket.connect_nonblock(sockaddr)
         rescue Errno::EISCONN
+          # socket is already connected
+          #connected = false
+          #puts "Errno::EISCONN!!"
+        rescue
           connected = false
-          puts "Errno::EISCONN!!"
+          puts "Errno during socket.connect_nonblock"
         end
       end
       #}
@@ -120,8 +124,10 @@ module Kt
         sig += key+"="+arg_assoc_hash[key].to_s
       end
       
+      sig += secret_key
+
       arg_assoc_hash['an_sig'] = Digest::MD5.hexdigest(sig)
-      
+
       query = arg_assoc_hash.to_query
       url_path = kt_api_url+"/"+version+"/"+api_key+"/"+api_func+"/?"+query
     end
@@ -132,7 +138,6 @@ end
 
 
 # test 
-
-#comm = Kontagent::Kt_Comm.new('67.102.65.65')
+#comm = Kt::KtComm.new('kthq.dyndns.org', '8080')
 #comm = Kontagent::Kt_Comm.new('10.0.0.0')
 #comm.api_call_method('/api', 'test', '123','345', 'api_func', {'a'=>'foo'})

@@ -11,16 +11,18 @@ module Kt
     @@URL_REGEX_STR = /(href\s*=.*?)(https?:\/\/[^\s>\'"]+)/ #matches all the urls
     @@URL_WITH_NO_HREF_REGEX_STR = /(https?:\/\/[^\s>\'"]+)/ #matches all the urls 
     @@KT_AB_MSG = /\{\*KT_AB_MSG\*\}/
-    @@S_undirected_types = {:pr=>:pr, :fdp=>:fdp, :ad=>:ad, :ap=>:ap}
-    @@S_directed_types = {:in=>:in, :nt=>:nt, :nte=>:nte}
+    @@S_undirected_types = {:pr=>:pr, :ad=>:ad, :ap=>:ap}
+    @@S_directed_types = {:in=>:in, :nt=>:nt, :nte=>:nte, :feedpub=>:feedpub, :feedstory=>:feedstory, :multifeedstory=>:multifeedstory}
+    @@S_profile_types = {:profilebox=>:profilebox, :profileinfo=>:profileinfo}
     @@S_kt_args = {:kt_uid=>1, :kt_d=>1, :kt_type=>1, :kt_ut=>1, :kt_t=>1, :kt_st1=>1, :kt_st2=>1}
     @@S_install_args = {:d=>1, :ut=>1, :installed=>1,  :sut=>1}
     
-    @@S_directed_val = 'd';
-    @@S_undirected_val = 'u';
+    @@S_directed_val = 'd'
+    @@S_undirected_val = 'u'
+    @@S_profile_val = 'p'
     @@instance_obj = nil
     
-    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url, :m_ab_testing_mgr
+    attr_reader :m_comm, :m_kt_api_key, :m_canvas_name, :m_call_back_req_uri, :m_call_back_host, :m_kt_host, :m_kt_host_port, :m_kt_host_url, :m_ab_testing_mgr, :m_is_disabled
     
     def self.instance()
       if @@instance_obj == nil
@@ -52,6 +54,8 @@ module Kt
         r = request_params['fb_sig_'+param_name]
       elsif request_params.has_key?(Facebooker.api_key+"_"+param_name)
         r = request_params[Facebooker.api_key+"_"+param_name]
+      elsif request_params.has_key?('fb_sig_canvas_user')
+        r = request_params['fb_sig_canvas_user']
       end
       return r
     end
@@ -69,12 +73,22 @@ module Kt
       return @m_kt_api_key + "_sut"
     end
 
+    def gen_ru_cookie_key()
+      return @m_kt_api_key + "_ru"
+    end
+
     def store_ut_key_in_cookie(cookies, ut)
       cookies[gen_ut_cookie_key()] = {:value => ut, :expires => 10.minutes.from_now } 
     end
     
     def store_sut_key_in_cookie(cookies, sut)
       cookies[gen_sut_cookie_key()] = {:value => sut, :expired => 10.minutes.from_now }
+    end
+
+    # used for profileinfo and profilefbml only
+    def store_ru_key_in_cookie(cookies, uid)
+      tag = uid.to_s
+      cookies[gen_ru_cookie_key()] = {:value => tag, :expired => 10.minutes.from_now }
     end
 
     def init_from_conf(custom_conf = nil)
@@ -86,6 +100,12 @@ module Kt
         app_config_map = @config[$CURR_API_KEY]
       else
         app_config_map = @config
+      end
+      
+      if app_config_map['kt_disabled'].blank?
+        @m_is_disabled = false
+      else
+        @m_is_disabled = app_config_map['kt_disabled'] 
       end
       
       if app_config_map['use_test_server'] == true
@@ -156,13 +176,7 @@ module Kt
     def format_kt_st1(st1_str)
       handle_index = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_campaign_handle_index(st1_str)
       if !handle_index.nil?
-        if handle_index > 0
-          return "aB_"+ st1_str + handle_index.to_s
-        else
-          return "aB_"+st1_str
-        end
-      else
-        return  "aB_"
+        return "aB_" + st1_str + "___" + handle_index.to_s
       end
     end
 
@@ -271,6 +285,98 @@ module Kt
       return r_url
     end
 
+    def gen_profile_fbml_link(fbml_txt, st1, st2, owner_id)
+      id, query_str = gen_kt_comm_query_str(:profilebox, nil, st1, st2, nil, nil, owner_id)
+      fbml_txt = fbml_txt.gsub(@@URL_REGEX_STR){|match|
+        if $1.nil?
+          append_kt_query_str($2, query_str)
+        else
+          $1 + append_kt_query_str($2, query_str)
+        end
+      }
+      return fbml_txt
+    end
+
+    def kt_profile_setFBML_send(uid, st1, st2)
+      arg_hash = {
+        'tu' => 'profilebox',
+        's' => uid,
+      }
+
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+
+      kt_outbound_msg('pst', arg_hash)
+    end
+    
+    def gen_profile_info_link(info_fields, owner_id, st1, st2)
+      id, query_str = gen_kt_comm_query_str(:profileinfo, nil, st1, st2,nil,nil, owner_id)
+
+      i=0
+      j=0
+      info_fields.each do | info_item |
+        item_array = info_item['items']
+        item_array.each do | item |
+          link = item['link']
+          info_fields[i]['items'][j]['link'] = append_kt_query_str(link, query_str)
+          j += 1
+        end
+        i+=1
+      end
+      return info_fields
+    end
+
+    def kt_profile_setInfo_send(uid, st1, st2)
+      arg_hash = {
+        'tu' => 'profileinfo',
+        's' => uid,
+      }
+      
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+      
+      kt_outbound_msg('pst', arg_hash)
+    end
+    
+    def gen_feedstory_link(link, uuid, st1, st2, st3=nil)
+      id, query_str = gen_kt_comm_query_str(:feedstory, nil, st1, st2, st3, uuid)
+      r_url = append_kt_query_str(link, query_str)
+      return r_url
+    end
+
+    def kt_feedstory_send(uid, uuid, st1, st2, st3=nil)
+      arg_hash = {
+        'tu' => 'feedstory',
+        's' => uid,
+        'u' => uuid
+      }
+      
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+      arg_hash['st3'] = st3 if !st3.nil?
+
+      kt_outbound_msg('pst', arg_hash)
+    end
+
+    def gen_multifeedstory_link(link, uuid, st1, st2, st3=nil)
+      id, query_str = gen_kt_comm_query_str(:multifeedstory, nil, st1, st2, st3, uuid)
+      r_url = append_kt_query_str(link, query_str)
+      return r_url
+    end
+
+    def kt_multifeedstory_send(uid, uuid, st1, st2, st3=nil)
+      arg_hash = {
+        'tu' => 'multifeedstory',
+        's' => uid,
+        'u' => uuid
+      }
+      
+      arg_hash['st1'] = st1 if !st1.nil?
+      arg_hash['st2'] = st2 if !st2.nil?
+      arg_hash['st3'] = st3 if !st3.nil?
+      
+      kt_outbound_msg('pst', arg_hash)
+    end
     
     def get_invite_content_link_and_uuid(content_link, uid, template_id, subtype1, subtype2)
       uuid = gen_long_uuid
@@ -300,7 +406,7 @@ module Kt
       r_url = append_kt_query_str(content_link, arg_hash.to_query)
       return r_url
     end
-    
+
     def gen_kt_comm_link(input_txt, comm_type, template_id, subtype1, subtype2)
       uuid,query_str = gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, nil)
       input_txt = input_txt.gsub(@@URL_REGEX_STR){|match|
@@ -436,15 +542,16 @@ module Kt
       if not cookies[gen_ut_cookie_key()].blank?
         arg_hash['u'] = cookies[gen_ut_cookie_key()]
         cookies.delete gen_ut_cookie_key()
-        kt_outbound_msg('apa', arg_hash)        
       elsif not cookies[gen_sut_cookie_key()].blank?
         arg_hash['su'] = cookies[gen_sut_cookie_key()]
         cookies.delete gen_sut_cookie_key()
-        kt_outbound_msg('apa', arg_hash)
-      else
-        kt_outbound_msg('apa', arg_hash)
+      elsif not cookies[gen_ru_cookie_key()].blank?
+        arg_hash['ru'] = cookies[gen_ru_cookie_key()]
+        cookies.delete gen_ru_cookie_key()
       end
-
+      
+      kt_outbound_msg('apa', arg_hash)
+      
 #       if has_direction == true and request_params[:d] == @@S_directed_val
 #         arg_hash['u'] = request_params[:ut]
 #         kt_outbound_msg('apa', arg_hash)
@@ -517,27 +624,99 @@ module Kt
       return short_tag
     end
 
+    def save_feedstory_click(request_params, cookies)
+      msg_type = 'psr' 
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil
+      arg_hash['u'] = request_params[:kt_ut]
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
+      arg_hash['tu'] = 'feedstory'
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def save_multifeedstory_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil
+      arg_hash['u'] = request_params[:kt_ut]
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
+      arg_hash['tu'] = 'multifeedstory'
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+    
+    def save_feedpub_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil
+      arg_hash['u'] = request_params[:kt_ut]
+      store_ut_key_in_cookie(cookies, request_params[:kt_ut])
+      arg_hash['tu'] = 'feedpub'
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def save_profilebox_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil      
+      arg_hash['tu'] = 'profilebox'
+      arg_hash['s'] = request_params[:kt_owner_uid] 
+      store_ru_key_in_cookie(cookies, request_params[:kt_owner_uid])
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def save_profileinfo_click(request_params, cookies)
+      msg_type = 'psr'
+      arg_hash = {}
+      arg_hash['st1'] = request_params[:kt_st1] unless request_params[:kt_st1] == nil
+      arg_hash['st2'] = request_params[:kt_st2] unless request_params[:kt_st2] == nil
+      arg_hash['st3'] = request_params[:kt_st3] unless request_params[:kt_st3] == nil      
+      arg_hash['tu'] = 'profileinfo'
+      arg_hash['s'] = request_params[:kt_owner_uid] 
+      store_ru_key_in_cookie(cookies, request_params[:kt_owner_uid])
+      arg_hash['r'] = get_fb_param(request_params, 'user')
+      arg_hash['i'] = get_fb_param(request_params, 'added')
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
     def kt_outbound_msg(type, arg_hash)
-      # Timeout::timeout(1) do
-      #   if @m_mode == :async      
-      #     #timeout(@m_timeout) do
-      #     data_hash = {
-      #       :qtype => :kt_outbound,
-      #       :ctype => type,
-      #       :v => 'v1',
-      #       :kt_api_key => @m_kt_api_key,
-      #       :kt_secret_key => @m_kt_secret_key,
-      #       :kt_call_back_host => @m_kt_host,
-      #       :kt_call_back_port => @m_kt_host_port,
-      #       :kt_url => @m_kt_url,
-      #       :arg_hash => arg_hash,
-      #     }
-      #     Kt::Queue::Task.publish :record, data_hash
-      #     #end
-      #   else
-      #     @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
-      #   end
-      # end
+      Timeout::timeout(1) do
+        if @m_is_disabled == true
+          return #short circuit
+        end
+
+        if @m_mode == :async      
+          data_hash = {
+            :qtype => :kt_outbound,
+            :ctype => type,
+            :v => 'v1',
+            :kt_api_key => @m_kt_api_key,
+            :kt_secret_key => @m_kt_secret_key,
+            :kt_call_back_host => @m_kt_host,
+            :kt_call_back_port => @m_kt_host_port,
+            :kt_url => @m_kt_url,
+            :arg_hash => arg_hash,
+          }
+          Kt::Queue::Task.publish :record, data_hash
+        else
+          @m_comm.api_call_method(@m_kt_url, 'v1', @m_kt_api_key, @m_kt_secret_key, type, arg_hash)
+        end
+      end
     rescue Timeout::Error
       RAILS_DEFAULT_LOGGER.warn "kt_outbound_msg timed out."
     end
@@ -559,6 +738,34 @@ module Kt
       end
     end
     
+    # uid: can simply be one number or an array of uids
+    def increment_goal_count(uid, goal_id, inc)
+      msg_type = 'gci'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      arg_hash['gc'+goal_id.to_s] = inc
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    # goal_counts_assoc_array :  { goal_id0 => inc0, goal_id1 => inc1, .... }
+    def increment_multiple_goal_counts(uid, goal_counts_assoc_array)
+      msg_type = 'gci'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      goal_counts_assoc_array.each_pair do | k, v|
+        arg_hash['gc'+k.to_s] = v
+      end
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
+    def increment_monetization(uid, money_value)
+      msg_type = 'mtu'
+      arg_hash = {}
+      arg_hash['s'] = uid.is_a?(Array)? uid * "," : uid
+      arg_hash['v'] = money_value
+      kt_outbound_msg(msg_type, arg_hash)
+    end
+
     private
     def construct_arg_hash_for_click_event_helper(msg_type, request_params)
       arg_hash = {}
@@ -591,9 +798,14 @@ module Kt
     def undirected_type?(comm_type)
       @@S_undirected_types.has_key?(comm_type)
     end
+
+    def profile_type?(comm_type)
+      @@S_profile_types.has_key?(comm_type)
+    end
     
-    
-    def gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, subtype3)
+    # if $uuid is provided, then it doesn't generate a new one (directed comm)
+    def gen_kt_comm_query_str(comm_type, template_id, subtype1, subtype2, subtype3=nil,
+                              uuid_arg=nil, uid_arg=nil)
       param_array = {}
       uuid = 0
       
@@ -602,8 +814,8 @@ module Kt
           dir_val = @@S_directed_val
         elsif undirected_type? comm_type
           dir_val = @@S_undirected_val
-        else
-          # profile?
+        elsif profile_type? comm_type
+          dir_val = @@S_profile_val
         end
       end
       
@@ -611,8 +823,14 @@ module Kt
       param_array[:kt_type] = comm_type
       
       if dir_val == @@S_directed_val
-        uuid = gen_long_uuid()
-        param_array[:kt_ut] = uuid
+        if uuid_arg.nil?
+          uuid = gen_long_uuid()
+          param_array[:kt_ut] = uuid
+        else
+          param_array[:kt_ut] = uuid_arg
+        end
+      elsif dir_val == @@S_profile_val
+        param_array[:kt_owner_uid] = uid_arg
       end
       
       param_array[:kt_t] = template_id.to_s if !template_id.nil?

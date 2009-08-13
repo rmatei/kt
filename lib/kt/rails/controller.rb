@@ -16,9 +16,20 @@ module Kt
       end
       
       def set_ab_testing_page(campaign)
-        page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
-        msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
-        Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
+        if Kt::KtAnalytics.instance.m_ab_testing_mgr.are_page_message_coupled(campaign)
+          page_msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page_msg_tuple(campaign)
+          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_page_tuple(campaign, page_msg_info, cookies)
+        else
+          page_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_page(campaign)
+          msg_info = Kt::KtAnalytics.instance.m_ab_testing_mgr.get_ab_testing_message(campaign)
+          Kt::KtAnalytics.instance.m_ab_testing_mgr.cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
+        end
+      end
+
+
+      def ajax_kt_feedstory_send
+        Kt::KtAnalytics.instance.kt_feedstory_send(params[:uid], params[:uuid], params[:st1], params[:st2], params[:st3])
+        render :nothing => true
       end
       
       # DEPRECATED : we don't use iframes to track page views anymore.
@@ -30,7 +41,7 @@ module Kt
       def post_remove
         puts "calling post_remove..."
         Kt::KtAnalytics.instance.save_app_removed(params[:fb_sig_user])
-        render :nothing
+        render :nothing => true
       end  
       
       protected
@@ -110,8 +121,20 @@ module Kt
             Kt::KtAnalytics.instance.save_notification_click(params, cookies)
           when "nte" # email notification
             Kt::KtAnalytics.instance.save_notification_email_click(params, cookies)
-          when "fdp"
+          when "ad"
             short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
+          when "partner"
+            short_tag = Kt::KtAnalytics.instance.save_undirected_comm_click(params, cookies)
+          when "feedstory"
+            Kt::KtAnalytics.instance.save_feedstory_click(params, cookies)
+          when "multifeedstory"
+            Kt::KtAnalytics.instance.save_multifeedstory_click(params, cookies)
+          when "feedpub"
+            Kt::KtAnalytics.instance.save_feedpub_click(params, cookies)
+          when "profilebox"
+            Kt::KtAnalytics.instance.save_profilebox_click(params, cookies)
+          when "profileinfo"
+            Kt::KtAnalytics.instance.save_profileinfo_click(params, cookies)
           else
           end
 

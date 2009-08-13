@@ -19,6 +19,10 @@ module Facebooker
       def campaign(arg)
         @campaign = arg
       end
+
+      def msg_data_array(arg)
+        @msg_data_array = arg
+      end
       
       def send_message_with_kontagent(method)
         @recipients = @recipients.is_a?(Array) ? @recipients : [@recipients]
@@ -35,7 +39,8 @@ module Facebooker
           @recipients.each {|r| r.publish_story(_body)}
         when Notification
           (from.nil? ? Facebooker::Session.create : from.session).send_notification(@recipients,_body.fbml, nil, @from, 
-                                                                                    @template, @subtype1, @subtype2, @campaign)
+                                                                                    @template, @subtype1, @subtype2, 
+                                                                                    @campaign, @msg_data_array)
         when Email
           from.session.send_email(@recipients, 
                                   _body.title, 
@@ -51,11 +56,11 @@ module Facebooker
           if @from != @recipients.first
             @from = Facebooker::User.new(Facebooker::User.cast_to_facebook_id(@recipients.first),from.session) 
           end
-          from.set_profile_fbml(_body.profile, _body.mobile_profile, _body.profile_action, _body.profile_main)
+          @from.set_profile_fbml(_body.profile, _body.mobile_profile, _body.profile_action, _body.profile_main, @subtype1, @subtype2)
         when Ref
           @from.session.server_cache.set_ref_handle(_body.handle,_body.fbml)
         when UserAction
-          @from.session.publish_user_action(_body.template_id || FacebookTemplate.for(method) ,_body.data,_body.target_ids,_body.body_general, @subtype1, @subtype2, @campaign)
+          @from.session.publish_user_action(_body.template_id || FacebookTemplate.for(method) ,_body.data,_body.target_ids,_body.body_general, @subtype1, @subtype2, @campaign, @msg_data_array)
         else
           raise UnspecifiedBodyType.new("You must specify a valid send_as")
         end

@@ -3,13 +3,15 @@ require 'memcache'
 require 'net/http'
 require 'uri'
 require 'json'
+require 'digest/md5'
 require 'ruby-debug'
 
 module Kt
   class AB_Testing_Manager
 
-    @@URL_PREFIX = "/abtest/campaign_info";
-
+    @@URL_PREFIX = "/abtest/campaign_info"
+    @@VO_CUSTOM_VARIABLE_REGEX_STR = /\{\{(.*?)\}\}/
+    
     public
     def initialize(kt_api_key, kt_secret_key,
                    kt_ab_backend_host, kt_ab_backend_port)
@@ -28,14 +30,42 @@ module Kt
       @m_memcached_server = MemCache.new '127.0.0.1'
       @m_selected_msg_page_pair_dict = {}
     end
+    
+    private 
+    def append_sig(url_str, force)
+      arg_array = {}
+      time_stamp = Time.now.to_s
+      sig = Digest::MD5.hexdigest("AB_TEST" + time_stamp + @m_backend_secret_key)
+      
+      if force
+        arg_array['f'] = 1
+      end
+      arg_array['ts'] = time_stamp
+      arg_array['kt_sig'] = sig
+      
+      url_str = url_str+"?"+arg_array.to_query
+      return url_str
+    end
+    
+    private
+    def validate_checksum(json_obj)
+      key_lst = json_obj.keys.sort
+      sig = ""
+      key_lst.each do |k|
+        sig = sig + k + "=" + JSON.unparse(json_obj[k]).gsub(" ","") unless k == 'sig'
+      end
+      sig += @m_backend_secret_key
+      
+      if Digest::MD5.hexdigest(sig) != json_obj["sig"]
+        raise "Your inbound ab test message from kontagent fails checksum validation"
+      end
+    end
 
     private
     def fetch_ab_testing_data(campaign, force=false)
       begin
         url_str = @m_ab_backend + @@URL_PREFIX + "/" + @m_backend_api_key + "/" + campaign + "/"
-        if force == true
-          url_str += "?f=1"
-        end
+        url_str = append_sig(url_str, force)
 
         url = URI.parse(url_str)
         if url.query.nil?
@@ -50,35 +80,54 @@ module Kt
         json_obj = JSON.parse(res.body)
 
         if json_obj["changed"] == true
-          msg_lst = json_obj["messages"]
-          msg_weight_array = []
-          curr_idx = 0
-          
-          # process message list
-          msg_lst.each do |m|
-            w = m[1]
-            w.times { msg_weight_array << curr_idx }
-            curr_idx += 1
+          validate_checksum(json_obj)
+          if !json_obj["page_and_messages"].nil?
+            # process message and page together for feed related campaigns
+            page_msg_lst = json_obj["page_and_messages"]
+            weight_array = []
+            curr_idx = 0
+            
+            page_msg_lst.each do |pm|
+              w = pm[1]
+              w.times { weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            store_dict = {}
+            store_dict['json'] = json_obj
+            store_dict['weight'] = weight_array
+          else
+            # process message list
+            msg_lst = json_obj["messages"]
+            msg_weight_array = []
+            curr_idx = 0
+
+            msg_lst.each do |m|
+              w = m[1]
+              w.times { msg_weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            # process page list
+            page_lst = json_obj['pages']
+            page_weight_array = []
+            curr_idx = 0
+            page_lst.each do |p|
+              w = p[1]
+              w.times { page_weight_array << curr_idx }
+              curr_idx += 1
+            end
+            
+            store_dict = {}
+            store_dict['json'] = json_obj
+            store_dict['msg_weight'] = msg_weight_array
+            store_dict['page_weight'] = page_weight_array
           end
-          
-          # process page list
-          page_lst = json_obj['pages']
-          page_weight_array = []
-          curr_idx = 0
-          page_lst.each do |p|
-            w = p[1]
-            w.times { page_weight_array << curr_idx }
-            curr_idx += 1
-          end
-          
-          store_dict = {}
-          store_dict['json'] = json_obj
-          store_dict['msg_weight'] = msg_weight_array
-          store_dict['page_weight'] = page_weight_array
           
           r = store_dict
           @m_memcached_server.set( gen_memcache_key(campaign), Marshal.dump(r), 0)
           @m_memcached_server.set( gen_memcache_fake_key(campaign), 1, 300 )
+          
         else
           # no change
           @m_memcached_server.set( gen_memcache_fake_key(campaign), 1, 300 )
@@ -103,6 +152,10 @@ module Kt
           r = fetch_ab_testing_data(campaign, true) # force it
         else
           r = fetch_ab_testing_data(campaign)
+          if r.nil?
+            #No changes on the ab test server. So, use the serialized_campaign_str
+            r = Marshal.load( serialized_campaign_str )
+          end
         end
       else
         # Likewise, the real key should have a valid json object.
@@ -158,17 +211,76 @@ module Kt
     end
 
     public
+    def get_ab_testing_page_msg_tuple(campaign)
+      dict = get_ab_helper(campaign)
+      if dict.nil?
+        return nil
+      else
+        json_obj = dict['json']
+        page_msg_lst = json_obj['page_and_messages']
+        weight_array = dict['weight']
+        index = weight_array[rand(weight_array.size)]
+        return page_msg_lst[index]
+      end
+    end
+
+    public
+    def are_page_message_coupled(campaign)
+      dict = get_ab_helper(campaign)
+      if dict.nil?
+        return nil
+      else
+        json_obj = dict['json']
+        return !json_obj['page_and_messages'].nil?
+      end
+    end
+    
+    def serialize_msg_page_tuple_helper(campaign, page_msg_info)
+      data = {}
+      data['campaign'] = campaign
+      data['data'] = page_msg_info
+      data['handle_index'] = get_ab_testing_campaign_handle_index(campaign)
+      return JSON.unparse(data)
+    end
+
     def cache_ab_testing_msg_and_page(campaign, msg_info, page_info)
       @m_selected_msg_page_pair_dict[campaign] = {'page'=>page_info, 'msg'=>msg_info}
     end
 
-    public 
-    def get_selected_msg_info(campaign)
-      msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
-      if msg_info.nil?
-        return nil
+    def cache_ab_testing_msg_page_tuple(campaign, page_msg_info, cookies)
+      @m_selected_msg_page_pair_dict[campaign] = {'page_msg' => page_msg_info}
+
+      cookie_data = {
+        :data => page_msg_info,
+        :handle_index => get_ab_testing_campaign_handle_index(campaign)
+      }
+      cookies["KT_FEED_AB_TEST_INFO"+campaign] = JSON.unparse(cookie_data)
+    end
+
+    def get_selected_page_msg_info(campaign, pg_custom_data=nil, msg_custom_data=nil)
+      r = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+      r[2] = replace_vo_custom_variable(r[2], pg_custom_data)
+      r[3] = replace_vo_custom_variable(r[3], msg_custom_data)
+      return r
+    end
+
+    def get_selected_msg_info(campaign, custom_data=nil)
+      if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
+        # invite, notification
+        msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
+        if msg_info.nil?
+          return nil
+        else
+          return msg_info[0], replace_vo_custom_variable(msg_info[2], custom_data)
+        end
       else
-        return msg_info[0], msg_info[2]
+        # feed related calls
+        page_msg_info = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+        if page_msg_info.nil?
+          return nil
+        else
+          return page_msg_info[0], replace_vo_custom_variable(page_msg_info[3], custom_data)
+        end
       end
     end
 
@@ -181,15 +293,51 @@ module Kt
       end
     end
 
-    def get_selected_page_info(campaign)
-      page_info = @m_selected_msg_page_pair_dict[campaign]['page']
-      if page_info.nil?
+    def get_selected_msg_info_title(campaign)
+      msg_info = @m_selected_msg_page_pair_dict[campaign]['msg']
+      if msg_info.nil?
         return nil
       else
-        return page_info[0], page_info[2]
+        return msg_info[0], msg_info[4]
       end
     end
 
+    def get_selected_page_info(campaign, custom_data=nil)
+      if @m_selected_msg_page_pair_dict[campaign]['page_msg'].nil?
+        # invite, notification
+        page_info = @m_selected_msg_page_pair_dict[campaign]['page']
+        if page_info.nil?
+          return nil
+        else
+          return page_info[0], replace_vo_custom_variable(page_info[2], custom_data)
+        end
+      else
+        # feed related calls
+        page_msg_info = @m_selected_msg_page_pair_dict[campaign]['page_msg']
+        if page_msg_info.nil?
+          return nil
+        else
+          return page_msg_info[0], replace_vo_custom_variable(page_msg_info[2], custom_data)
+        end
+      end
+    end
+
+    private
+    def replace_vo_custom_variable(text, data_dict)
+      return text if data_dict.nil?
+        
+      matched_variables_lst = text.scan(@@VO_CUSTOM_VARIABLE_REGEX_STR)
+      matched_variables_lst.each do |key|
+        k = key[0]
+        if data_dict[k].nil?
+          raise k + " is not defined in the data_assoc_array."
+        else
+          text = text.gsub('{{'+k+'}}' ,  data_dict[k])
+        end
+      end
+      return text
+    end
+      
     private
     def gen_memcache_fake_key(campaign)
       return "kt_"+@m_backend_api_key+"_"+campaign+"_fake"
