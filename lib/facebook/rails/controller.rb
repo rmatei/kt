@@ -49,6 +49,11 @@ module Facebooker
         Kt::KtAnalytics.instance.increment_multiple_goal_counts(uid, assoc_array)
       end
       
+      def kt_increment_monetization(money_value)
+        uid = Kt::KtAnalytics.instance.get_fb_param(params, 'user')
+        Kt::KtAnalytics.instance.increment_monetization(uid, money_value)
+      end
+
       def gen_feedstory_link_vo(link, uuid, ab_test_serialized_str)
         info = JSON.parse(ab_test_serialized_str)
         st1 = "aB_" + info['campaign'] + "___" + info['handle_index'].to_s
