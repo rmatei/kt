@@ -1,122 +1,59 @@
 /*
+ * Generate a random uuid.
+ *
+ * USAGE: Math.uuid(length, radix)
+ *   length - the desired number of characters
+ *   radix  - the number of allowable values for each character.
+ *
+ * EXAMPLES:
+ *   // No arguments  - returns RFC4122, version 4 ID
+ *   >>> Math.uuid()
+ *   "92329D39-6F5C-4520-ABFC-AAB64544E172"
+ *
+ *   // One argument - returns ID of the specified length
+ *   >>> Math.uuid(15)     // 15 character ID (default base=62)
+ *   "VcydxgltxrVZSTV"
+ *
+ *   // Two arguments - returns ID of the specified length, and radix. (Radix must be <= 62)
+ *   >>> Math.uuid(8, 2)  // 8 character ID (base=2)
+ *   "01001010"
+ *   >>> Math.uuid(8, 10) // 8 character ID (base=10)
+ *   "47473046"
+ *   >>> Math.uuid(8, 16) // 8 character ID (base=16)
+ *   "098F4D35"
+ */
+Math.uuid = (function() {
+  // Private array of chars to use
+  var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
 
-uuid.js - Version 0.3
-JavaScript Class to create a UUID like identifier
+  return function (len, radix) {
+    var chars = CHARS, uuid = [], rnd = Math.random;
+    radix = radix || chars.length;
 
-Copyright (C) 2006-2008, Erik Giberti (AF-Design), All rights reserved.
+    if (len) {
+      // Compact form
+      for (var i = 0; i < len; i++) uuid[i] = chars[0 | rnd()*radix];
+    } else {
+      // rfc4122, version 4 form
+      var r;
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
+      // rfc4122 requires these characters
+      uuid[8] = uuid[13] = uuid[18] = uuid[23] = '';
+      uuid[14] = '4';
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-The latest version of this file can be downloaded from
-http://www.af-design.com/resources/javascript_uuid.php
-
-HISTORY:
-6/5/06 	- Initial Release
-5/22/08 - Updated code to run faster, removed randrange(min,max) in favor of
-          a simpler rand(max) function. Reduced overhead by using getTime()
-          method of date class (suggestion by James Hall).
-9/5/08	- Fixed a bug with rand(max) and additional efficiencies pointed out
-	  by Robert Kieffer http://broofa.com/
-
-KNOWN ISSUES:
-- Still no way to get MAC address in JavaScript
-- Research into other versions of UUID show promising possibilities
-  (more research needed)
-- Documentation needs improvement
-
-*/
-
-// On creation of a UUID object, set it's initial value
-function UUID(){
-	this.id = this.createUUID();
-}
-
-// When asked what this Object is, lie and return it's value
-UUID.prototype.valueOf = function(){ return this.id; }
-UUID.prototype.toString = function(){ return this.id; }
-
-//
-// INSTANCE SPECIFIC METHODS
-//
-
-UUID.prototype.createUUID = function(){
-	//
-	// Loose interpretation of the specification DCE 1.1: Remote Procedure Call
-	// described at http://www.opengroup.org/onlinepubs/009629399/apdxa.htm#tagtcjh_37
-	// since JavaScript doesn't allow access to internal systems, the last 48 bits
-	// of the node section is made up using a series of random numbers (6 octets long).
-	//
-	var dg = new Date(1582, 10, 15, 0, 0, 0, 0);
-	var dc = new Date();
-	var t = dc.getTime() - dg.getTime();
-	var h = '';
-	var tl = UUID.getIntegerBits(t,0,31);
-	var tm = UUID.getIntegerBits(t,32,47);
-	var thv = UUID.getIntegerBits(t,48,59) + '1'; // version 1, security version is 2
-	var csar = UUID.getIntegerBits(UUID.rand(4095),0,7);
-	var csl = UUID.getIntegerBits(UUID.rand(4095),0,7);
-
-	// since detection of anything about the machine/browser is far to buggy,
-	// include some more random numbers here
-	// if NIC or an IP can be obtained reliably, that should be put in
-	// here instead.
-	var n = UUID.getIntegerBits(UUID.rand(8191),0,7) +
-			UUID.getIntegerBits(UUID.rand(8191),8,15) +
-			UUID.getIntegerBits(UUID.rand(8191),0,7) +
-			UUID.getIntegerBits(UUID.rand(8191),8,15) +
-			UUID.getIntegerBits(UUID.rand(8191),0,15); // this last number is two octets long
-	return tl + h + tm + h + thv + h + csar + csl + h + n;
-}
-
-
-//
-// GENERAL METHODS (Not instance specific)
-//
-
-
-// Pull out only certain bits from a very large integer, used to get the time
-// code information for the first part of a UUID. Will return zero's if there
-// aren't enough bits to shift where it needs to.
-UUID.getIntegerBits = function(val,start,end){
-	var base16 = UUID.returnBase(val,16);
-	var quadArray = new Array();
-	var quadString = '';
-	var i = 0;
-	for(i=0;i<base16.length;i++){
-		quadArray.push(base16.substring(i,i+1));
-	}
-	for(i=Math.floor(start/4);i<=Math.floor(end/4);i++){
-		if(!quadArray[i] || quadArray[i] == '') quadString += '0';
-		else quadString += quadArray[i];
-	}
-	return quadString;
-}
-
-// Replaced from the original function to leverage the built in methods in
-// JavaScript. Thanks to Robert Kieffer for pointing this one out
-UUID.returnBase = function(number, base){
-	return (number).toString(base).toUpperCase();
-}
-
-// pick a random number within a range of numbers
-// int b rand(int a); where 0 <= b <= a
-UUID.rand = function(max){
-	return Math.floor(Math.random() * (max + 1));
-}
-
-// end of UUID class file
-
+      // Fill in random data.  At i==19 set the high bits of clock sequence as
+      // per rfc4122, sec. 4.1.5
+      for (var i = 0; i < 36; i++) {
+        if (!uuid[i]) {
+          r = 0 | rnd()*16;
+          uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r & 0xf];
+        }
+      }
+    }
+    var ret = uuid.join('');
+    return ret.substring(0, 32);
+  };
+})();
 
 
 function urlencode( str ) {
@@ -259,6 +196,21 @@ function http_build_query( formdata, numeric_prefix, arg_separator ) {
     return tmp.join(arg_separator);
 }
 
+function kt_getCookie(c_name)
+{
+  if (document.cookie.length>0)
+  {
+    var c_start=document.cookie.indexOf(c_name + "=");
+    if (c_start!=-1)
+    {
+      c_start = c_start + c_name.length+1;
+      var c_end=document.cookie.indexOf(";",c_start);
+      if (c_end==-1) c_end=document.cookie.length;
+      return unescape(document.cookie.substring(c_start,c_end));
+    }
+  }
+  return "";
+}
 
 function gen_feedstory_link(link, uuid, st1, st2)
 {
@@ -276,6 +228,71 @@ function gen_feedstory_link(link, uuid, st1, st2)
 
   var mod_link = append_kt_query_str(link, query_str);
   return mod_link;
+}
+
+var kt_feed_cookie_prefix  = 'KT_FEED_AB_TEST_INFO';
+
+function gen_feedstory_link_vo(link, uuid, campaign)
+{
+  // check out cache_ab_testing_msg_page_tuplein kt_ab_testing.php to see how data is being stored in cookies
+  // {'data' : page_msg_info,
+  //  'handle_index': handle_index}
+  var abtest_data = JSON.parse(kt_getCookie(kt_feed_cookie_prefix+campaign));
+  var param_array = { 'kt_type' : 'feedstory',
+		      'kt_ut': String(uuid) };
+
+  param_array['kt_st1'] = format_kt_st1(campaign, abtest_data['handle_index']);
+  // For feeds, messages and pages are tightly coupled
+  param_array['kt_st2'] = format_kt_st2(abtest_data['data'][0]);
+  param_array['kt_st3'] = format_kt_st3(abtest_data['data'][0]);
+
+  var query_str = http_build_query(param_array);
+  var mod_link = append_kt_query_str(link, query_str);
+  return mod_link;
+}
+
+function format_kt_st1(st1_str, handle_index)
+{
+  return 'aB_'+st1_str+"___"+handle_index;
+}
+
+function format_kt_st2(st2_str)
+{
+  return 'm'+st2_str;
+}
+
+function format_kt_st3(st3_str)
+{
+  return 'p'+st3_str;
+}
+
+function get_selected_feed_msg(campaign, data_assoc_array)
+{
+  var abtest_data = JSON.parse(kt_getCookie(kt_feed_cookie_prefix+campaign));
+  return replace_vo_custom_variable(abtest_data['data'][3], data_assoc_array);
+}
+
+function get_selected_feed_call_to_action(campaign, data_assoc_array)
+{
+  var abtest_data = JSON.parse(kt_getCookie(kt_feed_cookie_prefix+campaign));
+  return replace_vo_custom_variable(abtest_data['data'][2], data_assoc_array);
+}
+
+var AB_TEMPLATE_REGEX = /\{\{(.*?)\}\}/g;
+var KEY_REGEX = /\{\{(.*?)\}\}/;
+function replace_vo_custom_variable(text, data_assoc_array)
+{
+  var variable_list = text.match(AB_TEMPLATE_REGEX);
+  if(variable_list == null) return text; //no variables
+
+  var len = variable_list.length;
+  for(var i = 0; i < len; i++)
+  {
+    var var_name = variable_list[i];
+    var key = var_name.match(KEY_REGEX)[1];
+    text = text.replace(var_name, data_assoc_array[key]);
+  }
+  return text;
 }
 
 function append_kt_query_str(original_url, query_str)

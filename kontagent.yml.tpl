@@ -116,7 +116,7 @@ queue_address:
 # Description: The name of the Kontagent API server to which data is sent. Do 
 #              NOT change this value.
 #
-kt_host: api.kontagent.com
+kt_host: api.geo.kontagent.net
 
 # Parameter: kt_url
 # 
